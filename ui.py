@@ -42,10 +42,12 @@ class DreamStudioImageEditorPanel(Panel):
 
         if DreamStateOperator.render_state == RenderState.RENDERING:
             layout.label(text="Rendering...")
+            # layout.label(text="Time elapsed: " + settings.frame_timer)
             layout.operator(DS_CancelRenderOperator.bl_idname)
             return
         elif DreamStateOperator.render_state == RenderState.DIFFUSING:
             layout.label(text="Diffusing...")
+            # layout.label(text="Time elapsed: " + str(settings.frame_timer))
             layout.operator(DS_CancelRenderOperator.bl_idname)
             return
 

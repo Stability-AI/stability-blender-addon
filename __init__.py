@@ -3,7 +3,7 @@ import bpy
 from bpy.props import PointerProperty, FloatProperty, IntProperty, EnumProperty, BoolProperty, StringProperty, CollectionProperty
 from bpy.types import AddonPreferences
 import os
-from .operators import DS_SceneRenderAnimationOperator, DS_SceneRenderFrameOperator, DreamStateOperator, DS_CancelRenderOperator, DS_ContinueRenderOperator, DSUIContext, DreamRenderOperator
+from .operators import DS_SceneRenderAnimationOperator, DS_SceneRenderFrameOperator, DreamStateOperator, DS_CancelRenderOperator, DS_ContinueRenderOperator, UIContext, DreamRenderOperator
 
 from .ui import DreamStudio3DPanel, DreamStudioImageEditorPanel
 
@@ -25,6 +25,13 @@ bl_info = {
     "category": "AI",
 }
 
+# Update the entire UI when this property changes.
+def ui_update(self, context):
+    for region in context.area.regions:
+        if region.type == "UI":
+            region.tag_redraw()
+    print("update ui")
+    return None
 
 class DreamStudioSettings(bpy.types.PropertyGroup):
 
@@ -45,6 +52,8 @@ class DreamStudioSettings(bpy.types.PropertyGroup):
     # Specific to image view.
     init_source: EnumProperty(name="Init Source", items=INIT_SOURCES, default=2)
     output_location: EnumProperty(name="Output Location", items=OUTPUT_LOCATIONS, default=2)
+    
+    frame_timer: FloatProperty(default=0, update=ui_update)
 
 class DreamStudioPreferences(AddonPreferences):
     bl_idname = __package__

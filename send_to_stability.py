@@ -52,9 +52,12 @@ def render_img2img(input_file_location, output_file_location, args):
         with open(output_file_location, "wb") as res_img_file:
             res_img_file.write(res_img)
     else:
-        res_body = response.json()
-        msg = res_body["message"]
-        print(msg)
+        try:
+            res_body = response.json()
+            msg = res_body["message"]
+            print(msg)
+        except json.JSONDecodeError:
+            print(response.text)
     return response.status_code, msg
 
 

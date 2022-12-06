@@ -70,7 +70,7 @@ OUTPUT_LOCATIONS = [
 ]
 
 # Which UI element are we operating from?
-class DSUIContext(Enum):
+class UIContext(Enum):
     SCENE_VIEW_ANIMATION = 1
     SCENE_VIEW_FRAME = 2
     IMAGE_EDITOR = 3
