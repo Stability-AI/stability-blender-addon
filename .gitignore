@@ -1,0 +1,4 @@
+.vscode
+__pycache__
+*.tgz
+.python_dependencies/*
