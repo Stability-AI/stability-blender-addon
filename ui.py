@@ -16,6 +16,8 @@ import sys
 import os
 import site
 
+from .prompt_list import render_prompt_list
+
 from .data import InitSource, RenderState
 from .operators import DS_CancelRenderOperator, DS_SceneRenderAnimationOperator, DS_SceneRenderFrameOperator, DreamRenderOperator, DreamStateOperator
 from .send_to_stability import render_img2img, render_text2img
@@ -26,6 +28,27 @@ import platform
 import tempfile
 import time
 
+DS_CATEGORY = "dreamstudio"
+
+# Render the list of prompts.
+def render_in_progress_view(layout):
+    if DreamStateOperator.render_state != RenderState.IDLE:
+        state_text = (
+            "Rendering..."
+            if DreamStateOperator.render_state == RenderState.RENDERING
+            else "Diffusing... Frame: {}".format(
+                DreamStateOperator.current_frame_idx
+            )
+        )
+        layout.label(text=state_text)
+        cancel_text = (
+            "Cancel Render"
+            if DreamStateOperator.render_state == RenderState.RENDERING
+            else "Cancel Diffusion"
+        )
+        layout.operator(DS_CancelRenderOperator.bl_idname, text=cancel_text)
+        return
+
 # UI for the image editor panel.
 class DreamStudioImageEditorPanel(Panel):
     bl_idname = "panel.dreamstudio_image_editor"
@@ -33,34 +56,18 @@ class DreamStudioImageEditorPanel(Panel):
     # https://docs.blender.org/api/current/bpy_types_enum_items/space_type_items.html#rna-enum-space-type-items
     bl_space_type = "IMAGE_EDITOR"
     bl_region_type = "UI"
-    bl_category = "DreamStudio"
+    bl_category = DS_CATEGORY
 
     def draw(self, context):
         layout = self.layout
         settings = context.scene.ds_settings
         init_source = InitSource[settings.init_source]
 
-        if DreamStateOperator.render_state == RenderState.RENDERING:
-            layout.label(text="Rendering...")
-            # layout.label(text="Time elapsed: " + settings.frame_timer)
-            layout.operator(DS_CancelRenderOperator.bl_idname)
-            return
-        elif DreamStateOperator.render_state == RenderState.DIFFUSING:
-            layout.label(text="Diffusing...")
-            # layout.label(text="Time elapsed: " + str(settings.frame_timer))
-            layout.operator(DS_CancelRenderOperator.bl_idname)
-            return
-
+        render_in_progress_view(layout)
+        
         layout.prop(settings, "init_source")
         if init_source != InitSource.NONE:
             layout.prop(settings, "init_strength")
-        layout.prop(settings, "cfg_scale")
-        layout.prop(settings, "guidance_strength")
-        layout.prop(settings, "steps")
-        layout.prop(settings, "seed")
-        layout.prop(settings, "sampler")
-        layout.prop(settings, "clip_guidance_preset")
-        layout.prop(settings, "output_location")
 
         render_prompt_list(context.scene, layout)
 
@@ -73,7 +80,6 @@ class DreamStudio3DPanel(Panel):
     bl_label = "DreamStudio"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
-    bl_category = "DreamStudio"
 
     def redraw():
         for region in bpy.context.area.regions:
@@ -87,36 +93,7 @@ class DreamStudio3DPanel(Panel):
         layout.use_property_split = True
         layout.use_property_decorate = True
 
-        if DreamStateOperator.render_state != RenderState.IDLE:
-            state_text = (
-                "Rendering..."
-                if DreamStateOperator.render_state == RenderState.RENDERING
-                else "Diffusing... Frame: {}".format(
-                    DreamStateOperator.current_frame_idx
-                )
-            )
-            layout.label(text=state_text)
-            cancel_text = (
-                "Cancel Render"
-                if DreamStateOperator.render_state == RenderState.RENDERING
-                else "Cancel Diffusion"
-            )
-            layout.operator(DS_CancelRenderOperator.bl_idname, text=cancel_text)
-            return
-
-        layout.prop(settings, "init_strength")
-        layout.prop(settings, "cfg_scale")
-        layout.prop(settings, "guidance_strength")
-        layout.prop(settings, "seed")
-        layout.prop(settings, "frame_limit")
-        layout.prop(settings, "sampler")
-        layout.prop(settings, "clip_guidance_preset")
-        layout.prop(settings, "re_render")
-        layout.prop(settings, "steps")
-        layout.prop(settings, "output_location")
-
-        # Just for padding purposes
-        layout.label(text="")
+        render_in_progress_view(layout)
 
         render_prompt_list(scene, layout)
 
@@ -125,24 +102,37 @@ class DreamStudio3DPanel(Panel):
         )
         layout.operator(DS_SceneRenderFrameOperator.bl_idname, text="Dream (Frame)")
 
+# Individual panel sections are added by setting bl_parent_id
+class PanelSection:
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = "UI"
+    bl_category = DS_CATEGORY
 
-# Render the list of prompts.
-def render_prompt_list(scene, layout):
+class RenderOptionsPanelSection(PanelSection, Panel):
+    
+    bl_parent_id = DreamStudio3DPanel.bl_idname
+    bl_label = "Render Options"
 
-    title_row = layout.row()
-    title_row.label(text="Prompts")
-    title_row.operator("prompt_list.new_item", text="Add", icon="ADD")
+    def draw(self, context):
+        layout = self.layout
+        settings = context.scene.ds_settings
+        layout.prop(settings, "re_render")
+        image_size_row = layout.row()
+        image_size_row.prop(settings, "init_image_height", text="Height")
+        image_size_row.prop(settings, "init_image_width", text="Width")
 
-    for i in range(len(scene.prompt_list)):
-        item = scene.prompt_list[i]
+class AdvancedOptionsPanelSection(PanelSection, Panel):
 
-        row = layout.row(align=True)
+    bl_parent_id = DreamStudio3DPanel.bl_idname
+    bl_label = "Advanced Options"
+    bl_options = {'DEFAULT_CLOSED'}
 
-        row.alignment = "EXPAND"
-        row.use_property_split = False
-        row.prop(item, "prompt")
-        row.prop(item, "strength")
-        delete_op = row.operator(
-            "prompt_list.remove_item", text="Remove", icon="REMOVE"
-        )
-        delete_op.index = i
+    def draw(self, context):
+        layout = self.layout
+        settings = context.scene.ds_settings
+        layout.prop(settings, "clip_guidance_preset")
+        layout.prop(settings, "cfg_scale", text="Prompt Strength")
+        layout.prop(settings, "steps", text="Steps")
+        layout.prop(settings, "seed")
+        layout.prop(settings, "sampler")
+        layout.prop(settings, "output_location")

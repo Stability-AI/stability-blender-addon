@@ -35,3 +35,29 @@ class PromptList_RemoveItem(Operator):
         context.scene.prompt_list.remove(self.index)
 
         return {'FINISHED'}
+
+def render_prompt_list(scene, layout):
+
+    title_row = layout.row()
+    title_row.label(text="Prompts")
+    title_row.operator("prompt_list.new_item", text="Add", icon="ADD")
+
+    for i in range(len(scene.prompt_list)):
+        item = scene.prompt_list[i]
+
+        row = layout.row(align=True)
+
+        row.alignment = "EXPAND"
+        row.use_property_split = False
+        row.prop(item, "prompt")
+
+        strength_row = row.row(align=True)
+        strength_row.scale_x = 0.75
+        strength_row.prop(item, "strength", text="")
+
+        delete_row = row.row(align=True)
+        delete_row.scale_x = 0.75
+        delete_op = delete_row.operator(
+            "prompt_list.remove_item", text="Remove", icon="REMOVE"
+        )
+        delete_op.index = i

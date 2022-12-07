@@ -135,6 +135,9 @@ class GeneratorWorker(Thread):
         context = self.context
         # scene = self.scene
         frame_limit: int = settings.frame_limit
+        res_img_file_location = os.path.join(
+            DreamStateOperator.results_dir, "result_0.png"
+        )
 
         if self.init_source == InitSource.NONE:
             DreamStateOperator.render_state = RenderState.DIFFUSING

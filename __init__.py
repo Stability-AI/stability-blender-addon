@@ -5,7 +5,7 @@ from bpy.types import AddonPreferences
 import os
 from .operators import DS_SceneRenderAnimationOperator, DS_SceneRenderFrameOperator, DreamStateOperator, DS_CancelRenderOperator, DS_ContinueRenderOperator, UIContext, DreamRenderOperator
 
-from .ui import DreamStudio3DPanel, DreamStudioImageEditorPanel
+from .ui import AdvancedOptionsPanelSection, DreamStudio3DPanel, DreamStudioImageEditorPanel, RenderOptionsPanelSection
 
 from .data import INIT_SOURCES, OUTPUT_LOCATIONS, ClipGuidancePreset, Sampler, enum_to_blender_enum
 from .send_to_stability import render_img2img, render_text2img
@@ -16,7 +16,7 @@ import glob
 
 bl_info = {
     "name": "Dream Studio",
-    "author": "Brian Fitzgerald",
+    "author": "Stability AI",
     "description": "",
     "blender": (2, 80, 0),
     "version": (0, 0, 1),
@@ -47,8 +47,14 @@ class DreamStudioSettings(bpy.types.PropertyGroup):
     clip_guidance_preset: EnumProperty(name="CLIP Preset", items=enum_to_blender_enum(ClipGuidancePreset), default=1)
     seed: IntProperty(name="Seed", default=0, min=0, max=1000000)
 
+    # Image size.
+    use_render_size: BoolProperty(name="Re-Render", default=True)
+    init_image_height: IntProperty(name="Init Image Height", default=256, min=32, max=1024)
+    init_image_width: IntProperty(name="Init Image Width", default=256, min=32, max=1024)
+
     # Specific to 3D view.
     re_render: BoolProperty(name="Re-Render", default=True)
+
     # Specific to image view.
     init_source: EnumProperty(name="Init Source", items=INIT_SOURCES, default=2)
     output_location: EnumProperty(name="Output Location", items=OUTPUT_LOCATIONS, default=2)
@@ -83,6 +89,8 @@ registered_operators = [
     DS_SceneRenderFrameOperator,
     DreamStateOperator,
     DreamStudio3DPanel,
+    AdvancedOptionsPanelSection,
+    RenderOptionsPanelSection,
 ]
 
 def register():
