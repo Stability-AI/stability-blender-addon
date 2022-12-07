@@ -75,7 +75,6 @@ class DreamStudioSettings(bpy.types.PropertyGroup):
     # Diffusion settings
     init_strength: FloatProperty(name="Init Strength", default=0.5, min=0, max=1)
     cfg_scale: FloatProperty(name="CFG Scale", default=7.5)
-    frame_limit: IntProperty(name="Frame Limit", default=1000)
     sampler: EnumProperty(
         name="Sampler",
         items=enum_to_blender_enum(Sampler),

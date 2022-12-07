@@ -111,6 +111,8 @@ class DreamStudio3DPanel(Panel):
 
         if not valid:
             layout.label(text=validation_msg, icon="ERROR")
+        else:
+            layout.label(text="Ready to render!", icon="CHECKMARK")
 
         row = layout.row()
         row.scale_y = 2.0
@@ -128,16 +130,18 @@ class PanelSection:
     bl_category = DS_CATEGORY
 
 
+# Validation messages should be no longer than 50 chars or so.
 def validate_settings(settings, scene) -> tuple[bool, str]:
     width, height = int(settings.init_image_width), int(settings.init_image_height)
+    if settings.use_render_resolution:
+        width, height = int(scene.render.resolution_x), int(scene.render.resolution_y)
     prompts = scene.prompt_list
-    print(width, height)
     # cannot be > 1 megapixel
     if width * height > 1_000_000:
         return False, "Image size cannot be greater than 1 megapixel."
 
     if not prompts or len(prompts) < 1:
-        return False, "Please add at least one prompt to the prompt list."
+        return False, "Add at least one prompt to the prompt list."
 
     return True, ""
 
