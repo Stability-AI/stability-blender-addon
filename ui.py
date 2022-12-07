@@ -16,7 +16,7 @@ import sys
 import os
 import site
 
-from .prompt_list import render_prompt_list
+from .prompt_list import MULTIPROMPT_ENABLED, render_prompt_list
 
 from .data import InitSource, RenderState
 from .operators import (
@@ -105,14 +105,14 @@ class DreamStudio3DPanel(Panel):
             render_in_progress_view(layout)
             return
 
-        render_prompt_list(scene, layout)
-
         valid, validation_msg = validate_settings(settings, scene)
+
+        render_prompt_list(scene, layout)
 
         if not valid:
             layout.label(text=validation_msg, icon="ERROR")
         else:
-            layout.label(text="Ready to render!", icon="CHECKMARK")
+            layout.label(text="Ready to dream!", icon="CHECKMARK")
 
         row = layout.row()
         row.scale_y = 2.0
@@ -121,6 +121,13 @@ class DreamStudio3DPanel(Panel):
         )
         row.operator(DS_SceneRenderFrameOperator.bl_idname, text="Dream (Frame)")
         row.enabled = valid
+
+        output_location_row = layout.row()
+        output_location_row.alignment = "EXPAND"
+        output_location_row.use_property_split = False
+        output_location_row.use_property_decorate = False
+        output_location_row.scale_x = 0.75
+        output_location_row.prop(settings, "output_location")
 
 
 # Individual panel sections are added by setting bl_parent_id
@@ -143,6 +150,10 @@ def validate_settings(settings, scene) -> tuple[bool, str]:
     if not prompts or len(prompts) < 1:
         return False, "Add at least one prompt to the prompt list."
 
+    if not MULTIPROMPT_ENABLED:
+        if not prompts[0] or prompts[0].prompt == "":
+            return False, "Enter a prompt."
+
     return True, ""
 
 
@@ -156,6 +167,8 @@ class RenderOptionsPanelSection(PanelSection, Panel):
         settings = context.scene.ds_settings
         use_custom_res = not settings.use_render_resolution
         layout.prop(settings, "re_render")
+
+        layout.label(text="Init Image Settings")
         layout.prop(settings, "use_render_resolution")
         image_size_row = layout.row()
         image_size_row.enabled = use_custom_res
@@ -175,6 +188,11 @@ class AdvancedOptionsPanelSection(PanelSection, Panel):
         layout.prop(settings, "clip_guidance_preset")
         layout.prop(settings, "cfg_scale", text="Prompt Strength")
         layout.prop(settings, "steps", text="Steps")
-        layout.prop(settings, "seed")
+
+        seed_row = layout.row()
+        seed_row.prop(settings, "use_custom_seed")
+        seed_input_row = seed_row.row()
+        seed_input_row.enabled = settings.use_custom_seed
+        seed_input_row.prop(settings, "seed")
+
         layout.prop(settings, "sampler")
-        layout.prop(settings, "output_location")

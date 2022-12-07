@@ -45,6 +45,7 @@ from .prompt_list import (
 )
 import threading
 import glob
+import sys
 
 
 bl_info = {
@@ -70,40 +71,84 @@ def ui_update(self, context):
 class DreamStudioSettings(bpy.types.PropertyGroup):
 
     # Global settings
-    steps: IntProperty(name="Steps", default=50, min=10, max=100)
+    steps: IntProperty(
+        name="Steps",
+        default=50,
+        min=10,
+        max=100,
+        description="The more steps, the higher the resulting image quality.",
+    )
 
     # Diffusion settings
-    init_strength: FloatProperty(name="Init Strength", default=0.5, min=0, max=1)
-    cfg_scale: FloatProperty(name="CFG Scale", default=7.5)
+    init_strength: FloatProperty(
+        name="Init Strength",
+        default=0.5,
+        min=0,
+        max=1,
+        description="How heavily the resulting generation should follow the input frame. 1 returns the input frame exactly, while 0 does not follow it at all. 0.5-0.6 typically produces good results.",
+    )
+    cfg_scale: FloatProperty(
+        name="Prompt Strength",
+        default=7.5,
+        description="How much the prompt should influence the resulting image. 7.5 is a good starting point.",
+    )
     sampler: EnumProperty(
         name="Sampler",
         items=enum_to_blender_enum(Sampler),
         default=Sampler.K_DPMPP_2S_ANCESTRAL.value,
+        description="The sampler to use for the diffusion process. The default sampler is recommended for most use cases. Check the documentation for a detailed description of the presets.",
     )
     clip_guidance_preset: EnumProperty(
         name="CLIP Preset",
         items=enum_to_blender_enum(ClipGuidancePreset),
         default=ClipGuidancePreset.SIMPLE.value,
+        description="The guidance preset to use for the diffusion process. The default is recommended for most use cases. Check the documentation for a detailed description of the presets.",
     )
-    seed: IntProperty(name="Seed", default=0, min=0, max=1000000)
+    use_custom_seed: BoolProperty(name="Use Custom Seed", default=True)
+    # uint32 max value
+    seed: IntProperty(
+        name="Seed",
+        default=0,
+        min=0,
+        max=2147483647,
+        description="The seet fixes which random numbers are used for the diffusion process. This allows you to reproduce the same results for the same input frame. May also help with consistency across frames if you are rendering an animation.",
+    )
 
     # Render output settings
     re_render: BoolProperty(name="Re-Render Scene", default=True)
     use_render_resolution: BoolProperty(name="Use Render Resolution", default=True)
     init_image_height: EnumProperty(
-        name="Init Image Height", default=1, items=get_image_size_options
+        name="Init Image Height",
+        default=1,
+        items=get_image_size_options,
+        description="The height of the image that is sent to the model. The rendered frame will be scaled to this size.",
     )
     init_image_width: EnumProperty(
-        name="Init Image Width", default=1, items=get_image_size_options
+        name="Init Image Width",
+        default=1,
+        items=get_image_size_options,
+        description="The width of the image that is sent to the model. The rendered frame will be scaled to this size.",
     )
 
     # 3D View settings
-    re_render: BoolProperty(name="Re-Render", default=True)
+    re_render: BoolProperty(
+        name="Re-Render",
+        default=True,
+        description="Whether to re-render the scene before sending it to the model.",
+    )
 
     # Output settings
-    init_source: EnumProperty(name="Init Source", items=INIT_SOURCES, default=2)
+    init_source: EnumProperty(
+        name="Init Source",
+        items=INIT_SOURCES,
+        default=2,
+        description="The source of the initial image. The default is the rendered frame. The other options are the active image or a new image in the image editor.",
+    )
     output_location: EnumProperty(
-        name="Output Location", items=OUTPUT_LOCATIONS, default=2
+        name="Output",
+        items=OUTPUT_LOCATIONS,
+        default=2,
+        description="The location to save the output image. The default is to open the result as a new image in the image editor. The other options are to output the images to the file system, and open the explorer to the image when diffusion is complete, or replace the existing image in the image editor.",
     )
 
     frame_timer: FloatProperty(default=0, update=ui_update)
