@@ -97,18 +97,13 @@ class GeneratorWorker(Thread):
         Thread.__init__(self)
 
     def run(self):
-        try:
-            if (
-                self.ui_context == UIContext.SCENE_VIEW_ANIMATION
-                or self.ui_context == UIContext.SCENE_VIEW_FRAME
-            ):
-                self.generate_from_3d_scene()
-            elif self.ui_context == UIContext.IMAGE_EDITOR:
-                self.generate_from_image_editor()
-        except Exception as e:
-            print(e)
-            DreamStateOperator.render_state = RenderState.CANCELLED
-            DreamStateOperator.reset_render_state()
+        if (
+            self.ui_context == UIContext.SCENE_VIEW_ANIMATION
+            or self.ui_context == UIContext.SCENE_VIEW_FRAME
+        ):
+            self.generate_from_3d_scene()
+        elif self.ui_context == UIContext.IMAGE_EDITOR:
+            self.generate_from_image_editor()
 
     # TODO we can refactor these to be single-image and animation methods. Single image init code should be the same.
     def generate_from_image_editor(self):
@@ -129,7 +124,9 @@ class GeneratorWorker(Thread):
             status, reason = render_img2img(
                 DreamStateOperator.init_img_path, res_img_file_location, args
             )
+        print('res', status, reason)
         if status != 200:
+            DreamStateOperator.render_state = RenderState.CANCELLED
             raise Exception("Error generating image: {} {}".format(status, reason))
         DreamStateOperator.render_state = RenderState.FINISHED
 
@@ -214,11 +211,11 @@ class DreamRenderOperator(Operator):
 
     def modal(self, context, event):
 
-        # print("modal", DreamStateOperator.render_state.name)
-
         settings = context.scene.ds_settings
         output_location = OutputLocation[settings.output_location]
         ui_context = DreamStateOperator.ui_context
+
+        print("modal", DreamStateOperator.render_state.name)
 
         if DreamStateOperator.render_start_time is not None:
             settings.render_time = time.time() - DreamStateOperator.render_start_time
