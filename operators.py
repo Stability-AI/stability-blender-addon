@@ -133,23 +133,26 @@ class GeneratorWorker(Thread):
         render_file_type = scene.render.image_settings.file_format
         if render_file_type == "JPEG":
             render_file_type = "JPG"
-        frames_glob = os.path.join(
-            DreamStateOperator.output_dir,
-            "{}*.{}".format(RENDER_PREFIX, render_file_type.lower()),
-        )
-        rendered_frame_image_paths = glob.glob(frames_glob)
-        rendered_frame_image_paths = list(sorted(rendered_frame_image_paths))
-        if len(rendered_frame_image_paths) == 0:
-            raise Exception("No rendered frames found. Please render the scene first.")
 
         # img2img mode
         if self.ui_context == UIContext.SCENE_VIEW_FRAME:
             DreamStateOperator.diffusion_output_path = output_file_path
-            frame_img_file = rendered_frame_image_paths[0]
-            status, reason = render_img2img(frame_img_file, output_file_path, args)
+            status, reason = render_img2img(
+                DreamStateOperator.init_img_path, output_file_path, args
+            )
             if status != 200:
                 raise Exception("Error generating image: {} {}".format(status, reason))
         elif DreamStateOperator.ui_context == UIContext.SCENE_VIEW_ANIMATION:
+            frames_glob = os.path.join(
+                DreamStateOperator.output_dir,
+                "{}*.{}".format(RENDER_PREFIX, render_file_type.lower()),
+            )
+            rendered_frame_image_paths = glob.glob(frames_glob)
+            rendered_frame_image_paths = list(sorted(rendered_frame_image_paths))
+            if len(rendered_frame_image_paths) == 0:
+                raise Exception(
+                    "No rendered frames found. Please render the scene first."
+                )
             end_frame = min(
                 len(rendered_frame_image_paths),
                 len(rendered_frame_image_paths),
@@ -307,8 +310,7 @@ class DreamRenderOperator(Operator):
             )
             or (ui_context == UIContext.IMAGE_EDITOR)
         ):
-            # TODO reset these params to the user's original values after render.
-            tmp_frame_end = None
+            user_filepath = scene.render.filepath
             scene.render.filepath = DreamStateOperator.init_img_path
 
             render_file_type = scene.render.image_settings.file_format
@@ -325,8 +327,7 @@ class DreamRenderOperator(Operator):
             scene.render.resolution_x = tmp_w
             scene.render.resolution_y = tmp_h
 
-            if tmp_frame_end:
-                scene.frame_end = tmp_frame_end
+            scene.render.filepath = user_filepath
             if res != {"FINISHED"}:
                 raise Exception("Failed to render: {}".format(res))
 

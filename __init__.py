@@ -170,14 +170,12 @@ class DreamStudioPreferences(AddonPreferences):
     api_key: StringProperty(
         name="API Key", default="sk-Yc1fipqiDj98UVwEvVTP6OPgQmRk8cFRUSx79K9D3qCiNAFy"
     )
-    base_url: StringProperty(
-        name="REST API Base URL", default="https://api.stability.ai/v1alpha"
-    )
+    base_url: StringProperty(name="REST API Base URL", default="grpc.stability.ai:443")
 
     api_type: EnumProperty(
         name="API Protocol",
         items=enum_to_blender_enum(APIType),
-        default=APIType.REST.value,
+        default=APIType.GRPC.value,
     )
 
     auto_check_update = bpy.props.BoolProperty(

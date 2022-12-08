@@ -23,7 +23,7 @@ def format_rest_args(settings, prompt_list_items):
         recommended = get_optimal_engine_config(width, height)
         clip_preset, sampler, steps = (
             recommended.guidance_preset,
-            recommended.sampler,
+            recommended.sampler_clip,
             recommended.steps,
         )
     return {
@@ -143,9 +143,6 @@ class UIContext(Enum):
     IMAGE_EDITOR = 3
 
 
-# TODO we want to grab these from the REST API.
-
-
 class Sampler(Enum):
     K_EULER = 1
     K_DPM_2 = 2
@@ -191,7 +188,7 @@ class EngineConfig:
 
 class DefaultEngineConfig(EngineConfig):
     engine = Engine.GENERATE_1_5
-    sampler_clip = Sampler.K_DPMPP_2S_ANCESTRAL
+    sampler_clip = Sampler.K_DPM_2_ANCESTRAL
     sampler_no_clip = Sampler.K_DPMPP_2M
     guidance_preset = ClipGuidancePreset.FAST_GREEN
     steps = 50

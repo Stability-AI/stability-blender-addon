@@ -6,6 +6,7 @@ import random
 import time
 from enum import Enum
 import bpy
+from .prompt_list import MULTIPROMPT_ENABLED
 from .data import APIType
 
 
@@ -73,9 +74,6 @@ def render_img2img_grpc(input_file_location, output_file_location, args):
     from stability_sdk import client, interfaces
     from PIL import Image
     import io
-    from multiprocessing.shared_memory import SharedMemory
-    import stability_sdk.interfaces.gooseai.generation.generation_pb2 as generation
-    import stability_sdk.interfaces.gooseai.generation.generation_pb2_grpc as generation_grpc
     from stability_sdk.utils import (
         SAMPLERS,
         MAX_FILENAME_SZ,
@@ -84,23 +82,24 @@ def render_img2img_grpc(input_file_location, output_file_location, args):
         open_images,
     )
 
-    stability_inference = client.StabilityInference(key=args["api_key"])
+    stability_inference = client.StabilityInference(
+        key=args["api_key"], host=args["base_url"]
+    )
 
-    # https://github.com/Stability-AI/stability-sdk/blob/c04381f960008f37c7392467cfaabfdf8f763e6a/src/stability_sdk/utils.py#L18
-    if args["sampler"] not in SAMPLERS:
-        raise Exception(
-            f"Sampler {args['sampler']} not supported. Supported samplers are: {SAMPLERS.keys()}"
-        )
-    sampler = get_sampler_from_str(args["sampler"])
+    sampler_name = args["sampler"].name.lower().strip()
+    sampler = get_sampler_from_str(sampler_name)
 
     init_img = Image.open(input_file_location)
     hit_safety_filter = True
     res_img = None
     seed = random.randrange(0, 4294967295) if args["seed"] is None else args["seed"]
+    prompts = [{"text": p[0], "weight": p[1]} for p in args["prompts"]]
+    if not MULTIPROMPT_ENABLED:
+        prompts = prompts[0]["text"]
     while hit_safety_filter:
         frame_seed = seed
         answers = stability_inference.generate(
-            prompt=args["prompt"],
+            prompt=prompts,
             init_image=init_img,
             width=init_img.width if init_img is not None else args["width"],
             height=init_img.height if init_img is not None else args["height"],
@@ -129,8 +128,9 @@ def render_img2img_grpc(input_file_location, output_file_location, args):
                     res_img.save(output_file_location)
                     hit_safety_filter = False
     if res_img is None:
-        raise Exception("No image returned from server")
-    return res_img, "Success"
+        # TODO actual error surfacing
+        return 500, "No image returned from server"
+    return 200, "Success"
 
 
 def render_text2img(output_file_location, args):
