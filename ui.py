@@ -74,7 +74,6 @@ class DreamStudioImageEditorPanel(Panel):
     def draw(self, context):
         layout = self.layout
         settings = context.scene.ds_settings
-        init_source = InitSource[settings.init_source]
 
         preferences = bpy.context.preferences.addons[__package__].preferences
         if not preferences.api_key or preferences.api_key == "":
@@ -88,10 +87,6 @@ class DreamStudioImageEditorPanel(Panel):
             return
 
         render_links_row(layout)
-
-        layout.prop(settings, "init_source")
-        if init_source != InitSource.NONE:
-            layout.prop(settings, "init_strength")
 
         if DreamStateOperator.display_all_options:
             render_prompt_list(context.scene, layout)
@@ -188,12 +183,15 @@ class RenderOptionsPanelSection(PanelSection, Panel):
         layout = self.layout
         settings = context.scene.ds_settings
         use_custom_res = not settings.use_render_resolution
+        init_source = InitSource[settings.init_source]
+        layout.prop(settings, "init_source")
+        if init_source != InitSource.NONE:
+            layout.prop(settings, "init_strength")
 
         if not DreamStateOperator.display_all_options:
             return
 
         layout.prop(settings, "re_render")
-        layout.label(text="Init Image Settings")
         layout.prop(settings, "use_render_resolution")
         image_size_row = layout.row()
         image_size_row.enabled = use_custom_res
