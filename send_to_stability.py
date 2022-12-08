@@ -5,10 +5,20 @@ import json
 import random
 import time
 from enum import Enum
+import bpy
+from .data import APIType
 
 
 def render_img2img(input_file_location, output_file_location, args):
+    preferences = bpy.context.preferences.addons[__package__].preferences
+    api_type = APIType[preferences.api_type]
+    if api_type == APIType.REST:
+        return render_img2img_rest(input_file_location, output_file_location, args)
+    if api_type == APIType.GRPC:
+        return render_img2img_grpc(input_file_location, output_file_location, args)
 
+
+def render_img2img_rest(input_file_location, output_file_location, args):
     prompts = [{"text": p[0], "weight": p[1]} for p in args["prompts"]]
 
     seed = random.randrange(0, 4294967295) if args["seed"] is None else args["seed"]
@@ -56,6 +66,71 @@ def render_img2img(input_file_location, output_file_location, args):
         except json.JSONDecodeError:
             print(response.text)
     return response.status_code, msg
+
+
+def render_img2img_grpc(input_file_location, output_file_location, args):
+
+    from stability_sdk import client, interfaces
+    from PIL import Image
+    import io
+    from multiprocessing.shared_memory import SharedMemory
+    import stability_sdk.interfaces.gooseai.generation.generation_pb2 as generation
+    import stability_sdk.interfaces.gooseai.generation.generation_pb2_grpc as generation_grpc
+    from stability_sdk.utils import (
+        SAMPLERS,
+        MAX_FILENAME_SZ,
+        truncate_fit,
+        get_sampler_from_str,
+        open_images,
+    )
+
+    stability_inference = client.StabilityInference(key=args["api_key"])
+
+    # https://github.com/Stability-AI/stability-sdk/blob/c04381f960008f37c7392467cfaabfdf8f763e6a/src/stability_sdk/utils.py#L18
+    if args["sampler"] not in SAMPLERS:
+        raise Exception(
+            f"Sampler {args['sampler']} not supported. Supported samplers are: {SAMPLERS.keys()}"
+        )
+    sampler = get_sampler_from_str(args["sampler"])
+
+    init_img = Image.open(input_file_location)
+    hit_safety_filter = True
+    res_img = None
+    seed = random.randrange(0, 4294967295) if args["seed"] is None else args["seed"]
+    while hit_safety_filter:
+        frame_seed = seed
+        answers = stability_inference.generate(
+            prompt=args["prompt"],
+            init_image=init_img,
+            width=init_img.width if init_img is not None else args["width"],
+            height=init_img.height if init_img is not None else args["height"],
+            start_schedule=1.0 - args["init_strength"],
+            cfg_scale=args["cfg_scale"],
+            steps=args["steps"],
+            guidance_strength=args["guidance_strength"],
+            sampler=sampler,
+            seed=frame_seed,
+        )
+
+        for answer in answers:
+            for artifact in answer.artifacts:
+                print("type", artifact.type, "finish reason", artifact.finish_reason)
+                if (
+                    artifact.finish_reason
+                    == interfaces.gooseai.generation.generation_pb2.FILTER
+                ):
+                    frame_seed += 1
+                    break
+                if (
+                    artifact.type
+                    == interfaces.gooseai.generation.generation_pb2.ARTIFACT_IMAGE
+                ):
+                    res_img = Image.open(io.BytesIO(artifact.binary))
+                    res_img.save(output_file_location)
+                    hit_safety_filter = False
+    if res_img is None:
+        raise Exception("No image returned from server")
+    return res_img, "Success"
 
 
 def render_text2img(output_file_location, args):

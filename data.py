@@ -1,6 +1,10 @@
 from enum import Enum
 import bpy
 from dataclasses import dataclass
+import ensurepip
+import os
+import subprocess
+import sys
 
 
 RENDER_PREFIX = "render_"
@@ -61,13 +65,19 @@ def copy_image(image):
     return new_image
 
 
+class APIType(Enum):
+    REST = 1
+    GRPC = 2
+
+
 # Main state for the addon. Should be thought of as a linear single path - except for pausing / cancelling.
 class RenderState(Enum):
-    IDLE = 0
+    ONBOARDING = 0
+    IDLE = 1
     # Rendering or copying the init image
-    RENDERING = 1
+    RENDERING = 2
     # Running the diffusion thread
-    DIFFUSING = 2
+    DIFFUSING = 3
     # About to pause
     SHOULD_PAUSE = 4
     # Paused due to displaying an option or dialog box
@@ -183,7 +193,7 @@ class DefaultEngineConfig(EngineConfig):
     engine = Engine.GENERATE_1_5
     sampler_clip = Sampler.K_DPMPP_2S_ANCESTRAL
     sampler_no_clip = Sampler.K_DPMPP_2M
-    guidance_preset = ClipGuidancePreset.SIMPLE
+    guidance_preset = ClipGuidancePreset.FAST_GREEN
     steps = 50
 
 
@@ -191,7 +201,7 @@ class HighResEngineConfig(EngineConfig):
     engine = Engine.GENERATE_768_2_1
     sampler_clip = Sampler.K_DPMPP_2S_ANCESTRAL
     sampler_no_clip = Sampler.K_DPMPP_2M
-    guidance_preset = ClipGuidancePreset.SIMPLE
+    guidance_preset = ClipGuidancePreset.FAST_BLUE
     steps = 30
 
 
@@ -211,3 +221,28 @@ def get_image_size_options(self, context):
     for opt in range(384, 2048 + 64, 64):
         opts.append((str(opt), str(opt), "", opt))
     return opts
+
+
+def install_dependencies():
+    ensurepip.bootstrap()
+    os.environ.pop("PIP_REQ_TRACKER", None)
+    env = os.environ.copy()
+    env["PYTHONNOUSERSITE"] = "1"
+    env["GRPC_PYTHON_BUILD_WITH_CYTHON"] = "1"
+    for dep_name in ("stability-sdk==0.3.0", "sentry-sdk", "Pillow"):
+        res = subprocess.run(
+            [sys.executable, "-m", "pip", "install", dep_name], env=env
+        )
+        print(res.stdout)
+
+
+# TODO find a better way to verify this.
+def check_dependencies_installed():
+    try:
+        import stability_sdk
+        import sentry_sdk
+        import PIL
+
+        return True
+    except ImportError:
+        return False

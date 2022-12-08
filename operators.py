@@ -30,6 +30,7 @@ from .data import (
     copy_image,
     format_rest_args,
     get_init_image_dimensions,
+    install_dependencies,
 )
 from .send_to_stability import render_img2img, render_text2img
 import multiprocessing as mp
@@ -358,8 +359,6 @@ class DreamStateOperator(Operator):
     results_dir = None
     render_start_time: float = None
 
-    display_all_options = True
-
     # Cancel any in-progress render and reset the addon state.
     def reset_render_state():
         self = DreamStateOperator
@@ -406,7 +405,7 @@ class DS_OpenWebViewOperator(Operator):
 
 class DS_GetAPIKeyOperator(DS_OpenWebViewOperator, Operator):
     bl_idname = "dreamstudio.get_api_key"
-    url = "https://docs.dreamstudio.ai"
+    url = "https://beta.dreamstudio.ai/membership?tab=apiKeys"
 
 
 class DS_OpenDocumentationOperator(DS_OpenWebViewOperator, Operator):
@@ -418,3 +417,12 @@ class DS_OpenDocumentationOperator(DS_OpenWebViewOperator, Operator):
 class DS_GetSupportOperator(DS_OpenWebViewOperator, Operator):
     bl_idname = "dreamstudio.get_support"
     url = "https://platform.stability.ai/"
+
+
+class DS_InstallDependenciesOperator(Operator):
+    bl_idname = "dreamstudio.install_dependencies"
+    bl_label = "Install"
+
+    def execute(self, context):
+        install_dependencies()
+        return {"FINISHED"}

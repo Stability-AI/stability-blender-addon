@@ -3,11 +3,17 @@ from bpy.types import Panel
 
 from .prompt_list import MULTIPROMPT_ENABLED, render_prompt_list
 
-from .data import InitSource, RenderState, get_init_image_dimensions
+from .data import (
+    InitSource,
+    RenderState,
+    check_dependencies_installed,
+    get_init_image_dimensions,
+)
 from .operators import (
     DS_CancelRenderOperator,
     DS_GetAPIKeyOperator,
     DS_GetSupportOperator,
+    DS_InstallDependenciesOperator,
     DS_OpenDocumentationOperator,
     DS_SceneRenderAnimationOperator,
     DS_SceneRenderFrameOperator,
@@ -37,10 +43,14 @@ def render_in_progress_view(layout):
 
 
 def render_onboard_view(layout):
-    layout.label(text="Please enter your API key to begin.")
+    layout.label(text="Please enter your API key.")
     layout.label(text="Enter in File -> Preferences -> Add-ons -> AI: Dream Studio")
     layout.label(text="You can find it by pressing the button below:")
     layout.operator(DS_GetAPIKeyOperator.bl_idname, text="Get API Key", icon="URL")
+    layout.label(text="Then, install SDK dependencies.")
+    layout.operator(
+        DS_InstallDependenciesOperator.bl_idname, text="Install", icon="CONSOLE"
+    )
 
 
 def render_links_row(layout):
@@ -58,7 +68,6 @@ def render_output_location_row(layout, settings):
     output_location_row.alignment = "EXPAND"
     output_location_row.use_property_split = False
     output_location_row.use_property_decorate = False
-    output_location_row.scale_x = 0.75
     output_location_row.prop(settings, "output_location")
 
 
@@ -76,20 +85,24 @@ class DreamStudioImageEditorPanel(Panel):
         settings = context.scene.ds_settings
 
         preferences = bpy.context.preferences.addons[__package__].preferences
+
         if not preferences.api_key or preferences.api_key == "":
-            DreamStateOperator.display_all_options = False
+            DreamStateOperator.render_state = RenderState.ONBOARDING
+
+        if not check_dependencies_installed():
+            DreamStateOperator.render_state = RenderState.ONBOARDING
+
+        if DreamStateOperator.render_state == RenderState.ONBOARDING:
             render_onboard_view(layout)
             return
 
         if DreamStateOperator.render_state != RenderState.IDLE:
-            DreamStateOperator.display_all_options = False
             render_in_progress_view(layout)
             return
 
         render_links_row(layout)
 
-        if DreamStateOperator.display_all_options:
-            render_prompt_list(context.scene, layout)
+        render_prompt_list(context.scene, layout)
 
         layout.operator(DreamRenderOperator.bl_idname, text="Dream (Texture)")
 
@@ -116,9 +129,13 @@ class DreamStudio3DPanel(Panel):
         layout.use_property_split = True
         layout.use_property_decorate = True
 
-        DreamStateOperator.display_all_options = True
         if not preferences.api_key or preferences.api_key == "":
-            DreamStateOperator.display_all_options = False
+            DreamStateOperator.render_state = RenderState.ONBOARDING
+
+        if not check_dependencies_installed():
+            DreamStateOperator.render_state = RenderState.ONBOARDING
+
+        if DreamStateOperator.render_state == RenderState.ONBOARDING:
             render_onboard_view(layout)
             return
 
@@ -188,7 +205,7 @@ class RenderOptionsPanelSection(PanelSection, Panel):
         if init_source != InitSource.NONE:
             layout.prop(settings, "init_strength")
 
-        if not DreamStateOperator.display_all_options:
+        if DreamStateOperator.render_state == RenderState.ONBOARDING:
             return
 
         layout.prop(settings, "re_render")
@@ -212,7 +229,7 @@ class AdvancedOptionsPanelSection(PanelSection, Panel):
         settings = context.scene.ds_settings
         use_recommended = settings.use_recommended_settings
 
-        if not DreamStateOperator.display_all_options:
+        if DreamStateOperator.render_state == RenderState.ONBOARDING:
             return
 
         layout.prop(settings, "cfg_scale", text="Prompt Strength")

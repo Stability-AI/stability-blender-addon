@@ -12,7 +12,9 @@ from bpy.props import (
 from bpy.types import AddonPreferences
 import os
 from .operators import (
+    DS_GetAPIKeyOperator,
     DS_GetSupportOperator,
+    DS_InstallDependenciesOperator,
     DS_OpenDocumentationOperator,
     DS_SceneRenderAnimationOperator,
     DS_SceneRenderFrameOperator,
@@ -34,6 +36,7 @@ from . import addon_updater_ops
 from .data import (
     INIT_SOURCES,
     OUTPUT_LOCATIONS,
+    APIType,
     ClipGuidancePreset,
     Sampler,
     enum_to_blender_enum,
@@ -79,7 +82,7 @@ class DreamStudioSettings(bpy.types.PropertyGroup):
         default=50,
         min=10,
         max=100,
-        description="The more steps, the higher the resulting image quality.",
+        description="The more steps, the higher the resulting image quality",
     )
 
     # Diffusion settings
@@ -91,12 +94,12 @@ class DreamStudioSettings(bpy.types.PropertyGroup):
         default=0.5,
         min=0,
         max=1,
-        description="How heavily the resulting generation should follow the input frame. 1 returns the input frame exactly, while 0 does not follow it at all. 0.5-0.6 typically produces good results.",
+        description="How heavily the resulting generation should follow the input frame. 1 returns the input frame exactly, while 0 does not follow it at all. 0.5-0.6 typically produces good results",
     )
     cfg_scale: FloatProperty(
         name="Prompt Strength",
         default=7.5,
-        description="How much the prompt should influence the resulting image. 7.5 is a good starting point.",
+        description="How much the prompt should influence the resulting image. 7.5 is a good starting point",
     )
     sampler: EnumProperty(
         name="Sampler",
@@ -117,7 +120,7 @@ class DreamStudioSettings(bpy.types.PropertyGroup):
         default=0,
         min=0,
         max=2147483647,
-        description="The seet fixes which random numbers are used for the diffusion process. This allows you to reproduce the same results for the same input frame. May also help with consistency across frames if you are rendering an animation.",
+        description="The seet fixes which random numbers are used for the diffusion process. This allows you to reproduce the same results for the same input frame. May also help with consistency across frames if you are rendering an animation",
     )
 
     # Render output settings
@@ -127,20 +130,20 @@ class DreamStudioSettings(bpy.types.PropertyGroup):
         name="Init Image Height",
         default=1,
         items=get_image_size_options,
-        description="The height of the image that is sent to the model. The rendered frame will be scaled to this size.",
+        description="The height of the image that is sent to the model. The rendered frame will be scaled to this size",
     )
     init_image_width: EnumProperty(
         name="Init Image Width",
         default=1,
         items=get_image_size_options,
-        description="The width of the image that is sent to the model. The rendered frame will be scaled to this size.",
+        description="The width of the image that is sent to the model. The rendered frame will be scaled to this size",
     )
 
     # 3D View settings
     re_render: BoolProperty(
         name="Re-Render",
         default=True,
-        description="Whether to re-render the scene before sending it to the model.",
+        description="Whether to re-render the scene before sending it to the model",
     )
 
     # Output settings
@@ -151,7 +154,7 @@ class DreamStudioSettings(bpy.types.PropertyGroup):
         description="The source of the initial image. The default is the rendered frame. The other options are the active image or a new image in the image editor.",
     )
     output_location: EnumProperty(
-        name="Output",
+        name="Display output",
         items=OUTPUT_LOCATIONS,
         default=2,
         description="The location to save the output image. The default is to open the result as a new image in the image editor. The other options are to output the images to the file system, and open the explorer to the image when diffusion is complete, or replace the existing image in the image editor.",
@@ -168,7 +171,13 @@ class DreamStudioPreferences(AddonPreferences):
         name="API Key", default="sk-Yc1fipqiDj98UVwEvVTP6OPgQmRk8cFRUSx79K9D3qCiNAFy"
     )
     base_url: StringProperty(
-        name="API Base URL", default="https://api.stability.ai/v1alpha"
+        name="REST API Base URL", default="https://api.stability.ai/v1alpha"
+    )
+
+    api_type: EnumProperty(
+        name="API Protocol",
+        items=enum_to_blender_enum(APIType),
+        default=APIType.REST.value,
     )
 
     auto_check_update = bpy.props.BoolProperty(
@@ -210,8 +219,14 @@ class DreamStudioPreferences(AddonPreferences):
 
     def draw(self, context):
         layout = self.layout
+        layout.prop(self, "api_type")
         layout.prop(self, "api_key")
         layout.prop(self, "base_url")
+        layout.operator(
+            DS_InstallDependenciesOperator.bl_idname,
+            text="Reinstall Dependencies",
+            icon="CONSOLE",
+        )
         addon_updater_ops.update_settings_ui(self, context)
 
 
@@ -235,6 +250,8 @@ registered_operators = [
     DreamStudio3DPanel,
     AdvancedOptionsPanelSection,
     RenderOptionsPanelSection,
+    DS_InstallDependenciesOperator,
+    DS_GetAPIKeyOperator,
 ]
 
 
