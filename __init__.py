@@ -12,6 +12,8 @@ from bpy.props import (
 from bpy.types import AddonPreferences
 import os
 from .operators import (
+    DS_GetSupportOperator,
+    DS_OpenDocumentationOperator,
     DS_SceneRenderAnimationOperator,
     DS_SceneRenderFrameOperator,
     DreamStateOperator,
@@ -218,7 +220,8 @@ prompt_list_operators = [
 ]
 
 registered_operators = [
-    DS_OpenWebViewOperator,
+    DS_OpenDocumentationOperator,
+    DS_GetSupportOperator,
     DreamStudioSettings,
     DreamRenderOperator,
     DreamStudioImageEditorPanel,

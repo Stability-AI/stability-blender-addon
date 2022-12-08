@@ -21,6 +21,10 @@ from .prompt_list import MULTIPROMPT_ENABLED, render_prompt_list
 from .data import InitSource, RenderState
 from .operators import (
     DS_CancelRenderOperator,
+    DS_GetAPIKeyOperator,
+    DS_GetSupportOperator,
+    DS_OpenDocumentationOperator,
+    DS_OpenWebViewOperator,
     DS_SceneRenderAnimationOperator,
     DS_SceneRenderFrameOperator,
     DreamRenderOperator,
@@ -33,7 +37,6 @@ import glob
 import platform
 import tempfile
 import time
-import webbrowser
 
 
 DS_CATEGORY = "DreamStudio"
@@ -56,20 +59,30 @@ def render_in_progress_view(layout):
     return
 
 
-class DS_OpenWebViewOperator(Operator):
-    bl_idname = "dreamstudio.open_webview"
-    bl_label = "Open Web View"
-
-    def execute(self, context):
-        webbrowser.open("https://beta.dreamstudio.ai/membership?tab=apiKeys")
-        return {"FINISHED"}
-
-
 def render_onboard_view(layout):
     layout.label(text="Please enter your API key to begin.")
     layout.label(text="Enter in File -> Preferences -> Add-ons -> AI: Dream Studio")
     layout.label(text="You can find it by pressing the button below:")
-    layout.operator(DS_OpenWebViewOperator.bl_idname, text="Get API Key", icon="URL")
+    layout.operator(DS_GetAPIKeyOperator.bl_idname, text="Get API Key", icon="URL")
+
+
+def render_links_row(layout):
+    links_row = layout.row()
+    links_row.operator(
+        DS_OpenDocumentationOperator.bl_idname, text="Open Docs", icon="TEXT"
+    )
+    links_row.operator(
+        DS_GetSupportOperator.bl_idname, text="Get Support", icon="QUESTION"
+    )
+
+
+def render_output_location_row(layout, settings):
+    output_location_row = layout.row()
+    output_location_row.alignment = "EXPAND"
+    output_location_row.use_property_split = False
+    output_location_row.use_property_decorate = False
+    output_location_row.scale_x = 0.75
+    output_location_row.prop(settings, "output_location")
 
 
 # UI for the image editor panel.
@@ -97,6 +110,8 @@ class DreamStudioImageEditorPanel(Panel):
             render_in_progress_view(layout)
             return
 
+        render_links_row(layout)
+
         layout.prop(settings, "init_source")
         if init_source != InitSource.NONE:
             layout.prop(settings, "init_strength")
@@ -123,11 +138,12 @@ class DreamStudio3DPanel(Panel):
     def draw(self, context):
         settings = context.scene.ds_settings
         scene = context.scene
+        preferences = bpy.context.preferences.addons[__package__].preferences
+
         layout = self.layout
         layout.use_property_split = True
         layout.use_property_decorate = True
 
-        preferences = bpy.context.preferences.addons[__package__].preferences
         DreamStateOperator.display_all_options = True
         if not preferences.api_key or preferences.api_key == "":
             DreamStateOperator.display_all_options = False
@@ -137,6 +153,8 @@ class DreamStudio3DPanel(Panel):
         if DreamStateOperator.render_state != RenderState.IDLE:
             render_in_progress_view(layout)
             return
+
+        render_links_row(layout)
 
         valid, validation_msg = validate_settings(settings, scene)
 
@@ -155,20 +173,6 @@ class DreamStudio3DPanel(Panel):
         row.operator(DS_SceneRenderFrameOperator.bl_idname, text="Dream (Frame)")
         row.enabled = valid
 
-        output_location_row = layout.row()
-        output_location_row.alignment = "EXPAND"
-        output_location_row.use_property_split = False
-        output_location_row.use_property_decorate = False
-        output_location_row.scale_x = 0.75
-        output_location_row.prop(settings, "output_location")
-
-
-# Individual panel sections are added by setting bl_parent_id
-class PanelSection:
-    bl_space_type = "VIEW_3D"
-    bl_region_type = "UI"
-    bl_category = DS_CATEGORY
-
 
 # Validation messages should be no longer than 50 chars or so.
 def validate_settings(settings, scene) -> tuple[bool, str]:
@@ -183,11 +187,22 @@ def validate_settings(settings, scene) -> tuple[bool, str]:
     if not prompts or len(prompts) < 1:
         return False, "Add at least one prompt to the prompt list."
 
+    # TODO when multi prompt is enabled we will need to validate all prompts individually.
     if not MULTIPROMPT_ENABLED:
         if not prompts[0] or prompts[0].prompt == "":
             return False, "Enter a prompt."
 
+        if prompts[0] and prompts[0].prompt and len(prompts[0].prompt) > 500:
+            return False, "Enter a prompt."
+
     return True, ""
+
+
+# Individual panel sections are added by setting bl_parent_id
+class PanelSection:
+    bl_space_type = "VIEW_3D"
+    bl_region_type = "UI"
+    bl_category = DS_CATEGORY
 
 
 class RenderOptionsPanelSection(PanelSection, Panel):
@@ -236,3 +251,5 @@ class AdvancedOptionsPanelSection(PanelSection, Panel):
         seed_input_row.prop(settings, "seed")
 
         layout.prop(settings, "sampler")
+
+        render_output_location_row(layout, settings)

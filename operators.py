@@ -18,6 +18,7 @@ import os
 import site
 from threading import Thread
 import time
+import webbrowser
 
 from .data import (
     RENDER_PREFIX,
@@ -376,3 +377,32 @@ def setup_render_directories(clear=False):
 
 
 SUPPORTED_RENDER_FILE_TYPES = {"PNG", "JPEG"}
+
+
+class DS_OpenWebViewOperator(Operator):
+    bl_idname = "dreamstudio.open_webview"
+    bl_label = "Open Web View"
+
+    url = None
+
+    def execute(self, context):
+        if not self.url:
+            raise Exception("No URL specified")
+        webbrowser.open(self.url)
+        return {"FINISHED"}
+
+
+class DS_GetAPIKeyOperator(DS_OpenWebViewOperator, Operator):
+    bl_idname = "dreamstudio.get_api_key"
+    url = "https://docs.dreamstudio.ai"
+
+
+class DS_OpenDocumentationOperator(DS_OpenWebViewOperator, Operator):
+    bl_idname = "dreamstudio.open_documentation"
+    url = "https://platform.stability.ai/"
+
+
+# TODO find a better support link
+class DS_GetSupportOperator(DS_OpenWebViewOperator, Operator):
+    bl_idname = "dreamstudio.get_support"
+    url = "https://platform.stability.ai/"
