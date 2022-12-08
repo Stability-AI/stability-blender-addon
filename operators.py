@@ -345,6 +345,8 @@ class DreamStateOperator(Operator):
     results_dir = None
     render_start_time: float = None
 
+    display_all_options = True
+
     # Cancel any in-progress render and reset the addon state.
     def reset_render_state():
         self = DreamStateOperator

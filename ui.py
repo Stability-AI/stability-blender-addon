@@ -33,11 +33,13 @@ import glob
 import platform
 import tempfile
 import time
+import webbrowser
+
 
 DS_CATEGORY = "DreamStudio"
 DS_REGION_TYPE = "UI"
 
-# Render the list of prompts.
+
 def render_in_progress_view(layout):
     state_text = (
         "Rendering..."
@@ -54,6 +56,22 @@ def render_in_progress_view(layout):
     return
 
 
+class DS_OpenWebViewOperator(Operator):
+    bl_idname = "dreamstudio.open_webview"
+    bl_label = "Open Web View"
+
+    def execute(self, context):
+        webbrowser.open("https://beta.dreamstudio.ai/membership?tab=apiKeys")
+        return {"FINISHED"}
+
+
+def render_onboard_view(layout):
+    layout.label(text="Please enter your API key to begin.")
+    layout.label(text="Enter in File -> Preferences -> Add-ons -> AI: Dream Studio")
+    layout.label(text="You can find it by pressing the button below:")
+    layout.operator(DS_OpenWebViewOperator.bl_idname, text="Get API Key", icon="URL")
+
+
 # UI for the image editor panel.
 class DreamStudioImageEditorPanel(Panel):
     bl_idname = "panel.dreamstudio_image_editor"
@@ -68,7 +86,14 @@ class DreamStudioImageEditorPanel(Panel):
         settings = context.scene.ds_settings
         init_source = InitSource[settings.init_source]
 
+        preferences = bpy.context.preferences.addons[__package__].preferences
+        if not preferences.api_key or preferences.api_key == "":
+            DreamStateOperator.display_all_options = False
+            render_onboard_view(layout)
+            return
+
         if DreamStateOperator.render_state != RenderState.IDLE:
+            DreamStateOperator.display_all_options = False
             render_in_progress_view(layout)
             return
 
@@ -76,7 +101,8 @@ class DreamStudioImageEditorPanel(Panel):
         if init_source != InitSource.NONE:
             layout.prop(settings, "init_strength")
 
-        render_prompt_list(context.scene, layout)
+        if DreamStateOperator.display_all_options:
+            render_prompt_list(context.scene, layout)
 
         layout.operator(DreamRenderOperator.bl_idname, text="Dream (Texture)")
 
@@ -100,6 +126,13 @@ class DreamStudio3DPanel(Panel):
         layout = self.layout
         layout.use_property_split = True
         layout.use_property_decorate = True
+
+        preferences = bpy.context.preferences.addons[__package__].preferences
+        DreamStateOperator.display_all_options = True
+        if not preferences.api_key or preferences.api_key == "":
+            DreamStateOperator.display_all_options = False
+            render_onboard_view(layout)
+            return
 
         if DreamStateOperator.render_state != RenderState.IDLE:
             render_in_progress_view(layout)
@@ -166,8 +199,11 @@ class RenderOptionsPanelSection(PanelSection, Panel):
         layout = self.layout
         settings = context.scene.ds_settings
         use_custom_res = not settings.use_render_resolution
-        layout.prop(settings, "re_render")
 
+        if not DreamStateOperator.display_all_options:
+            return
+
+        layout.prop(settings, "re_render")
         layout.label(text="Init Image Settings")
         layout.prop(settings, "use_render_resolution")
         image_size_row = layout.row()
@@ -185,6 +221,10 @@ class AdvancedOptionsPanelSection(PanelSection, Panel):
     def draw(self, context):
         layout = self.layout
         settings = context.scene.ds_settings
+
+        if not DreamStateOperator.display_all_options:
+            return
+
         layout.prop(settings, "clip_guidance_preset")
         layout.prop(settings, "cfg_scale", text="Prompt Strength")
         layout.prop(settings, "steps", text="Steps")
