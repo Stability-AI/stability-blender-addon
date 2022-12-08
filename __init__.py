@@ -25,7 +25,6 @@ from .operators import (
 
 from .ui import (
     AdvancedOptionsPanelSection,
-    DS_OpenWebViewOperator,
     DreamStudio3DPanel,
     DreamStudioImageEditorPanel,
     RenderOptionsPanelSection,

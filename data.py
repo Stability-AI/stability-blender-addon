@@ -22,6 +22,31 @@ def format_args_dict(settings, prompt_list_items):
     }
 
 
+def get_init_image_dimensions(settings, scene):
+    try:
+        if settings.use_render_resolution:
+            width, height = int(scene.render.resolution_x), int(
+                scene.render.resolution_y
+            )
+        else:
+            width, height = int(settings.init_image_width), int(
+                settings.init_image_height
+            )
+    except ValueError:
+        width, height = 512, 512
+    return width, height
+
+
+def copy_image(image):
+    new_image = bpy.data.images.new(
+        "dreamstudio_result",
+        width=image.size[0],
+        height=image.size[1],
+    )
+    new_image.pixels = image.pixels[:]
+    return new_image
+
+
 # Main state for the addon. Should be thought of as a linear single path - except for pausing / cancelling.
 class RenderState(Enum):
     IDLE = 0

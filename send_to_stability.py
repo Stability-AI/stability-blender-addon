@@ -6,6 +6,7 @@ import random
 import time
 from enum import Enum
 
+
 def render_img2img(input_file_location, output_file_location, args):
 
     prompts = [{"text": p[0], "weight": p[1]} for p in args["prompts"]]
@@ -27,9 +28,7 @@ def render_img2img(input_file_location, output_file_location, args):
     base_url = args["base_url"]
     url = f"{base_url}/generation/stable-diffusion-v1-5/image-to-image"
 
-    payload = {
-        "options": json.dumps(all_options)
-    }
+    payload = {"options": json.dumps(all_options)}
     files = [
         (
             "init_image",
@@ -41,9 +40,7 @@ def render_img2img(input_file_location, output_file_location, args):
         "Authorization": args["api_key"],
     }
 
-    response = requests.request(
-        "POST", url, headers=headers, data=payload, files=files
-    )
+    response = requests.request("POST", url, headers=headers, data=payload, files=files)
 
     msg = response.reason
 
@@ -59,7 +56,6 @@ def render_img2img(input_file_location, output_file_location, args):
         except json.JSONDecodeError:
             print(response.text)
     return response.status_code, msg
-
 
 
 def render_text2img(output_file_location, args):
@@ -86,12 +82,10 @@ def render_text2img(output_file_location, args):
     headers = {
         "Content-Type": "application/json",
         "Accept": "image/png",
-        "Authorization": args["api_key"]
+        "Authorization": args["api_key"],
     }
 
-    response = requests.request(
-        "POST", url, json=payload, headers=headers
-    )
+    response = requests.request("POST", url, json=payload, headers=headers)
 
     msg = response.reason
 
@@ -119,6 +113,7 @@ TRACKED_GENERATION_PARAMS = [
     "text_prompts",
 ]
 
+
 def filter_keys(keys, d):
     print(keys)
     return {k: d[k] for k in keys if k in d}
@@ -129,6 +124,7 @@ class TrackingEvent(Enum):
     IMG2IMG = 2
     CANCEL_GENERATION = 3
 
+
 # TODO track crashes, and exceptions as well
 TRACKING_EVENTS = {
     TrackingEvent.TEXT2IMG: TRACKED_GENERATION_PARAMS,
@@ -136,7 +132,13 @@ TRACKING_EVENTS = {
     TrackingEvent.CANCEL_GENERATION: [],
 }
 
-def record_tracking_event(tracking_event: TrackingEvent, payload: dict, user_id: str=None, debug: bool=False):
+
+def record_tracking_event(
+    tracking_event: TrackingEvent,
+    payload: dict,
+    user_id: str = None,
+    debug: bool = False,
+):
     url = "https://www.google-analytics.com/mp/collect?measurement_id=G-321PW7EDCP&api_secret=CPIiVajARdOuRypeU2mOrg"
     if debug:
         url = "https://www.google-analytics.com/debug/mp/collect?measurement_id=G-321PW7EDCP&api_secret=CPIiVajARdOuRypeU2mOrg"
@@ -151,48 +153,44 @@ def record_tracking_event(tracking_event: TrackingEvent, payload: dict, user_id:
         payload["prompt"] = payload["text_prompts"][0]["text"]
         payload["text_prompts"] = json.dumps(payload["text_prompts"])
 
-
     # https://developers.google.com/analytics/devguides/collection/protocol/v1/parameters
     # TODO flesh these out.
     platform = "Windows" if os.name == "nt" else "macOS"
     country = "US"
     headers = {
-        'authority': "www.google-analytics.com",
-        'accept': "*/*",
-        'accept-language': "en-US,en;q=0.9,sk;q=0.8,it;q=0.7",
-        'content-type': "application/json",
-        'dnt': "1",
-        'sec-ch-ua-mobile': "?0",
-        'sec-ch-ua-platform': platform,
-        'sec-fetch-dest': "empty",
-        'sec-fetch-mode': "cors",
-        'sec-fetch-site': "cross-site",
-        "geoid": country
+        "authority": "www.google-analytics.com",
+        "accept": "*/*",
+        "accept-language": "en-US,en;q=0.9,sk;q=0.8,it;q=0.7",
+        "content-type": "application/json",
+        "dnt": "1",
+        "sec-ch-ua-mobile": "?0",
+        "sec-ch-ua-platform": platform,
+        "sec-fetch-dest": "empty",
+        "sec-fetch-mode": "cors",
+        "sec-fetch-site": "cross-site",
+        "geoid": country,
     }
 
     current_unix_timestamp_microseconds = int(time.time() * 1000000) - 52091520
-
 
     event_payload = {
         "client_id": "blender",
         "user_id": "brian",
         "timestamp_micros": current_unix_timestamp_microseconds,
         "non_personalized_ads": True,
-        "events": [
-            {
-                "name": tracking_event.name,
-                "params": payload
-            }
-        ],
-        "validationBehavior": "ENFORCE_RECOMMENDATIONS"
+        "events": [{"name": tracking_event.name, "params": payload}],
+        "validationBehavior": "ENFORCE_RECOMMENDATIONS",
     }
 
-    response = requests.request("POST", url, headers=headers, data=json.dumps(event_payload))
+    response = requests.request(
+        "POST", url, headers=headers, data=json.dumps(event_payload)
+    )
 
     if debug:
         errors = response.json()
         print(errors)
 
     if response.status_code not in (200, 204):
-        print(f"Failed to record tracking event: {response.status_code} {response.reason}")
-
+        print(
+            f"Failed to record tracking event: {response.status_code} {response.reason}"
+        )

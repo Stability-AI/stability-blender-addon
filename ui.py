@@ -1,42 +1,19 @@
-from enum import Enum
-import heapq
 import bpy
-from bpy.props import (
-    StringProperty,
-    IntProperty,
-    CollectionProperty,
-    IntProperty,
-    PointerProperty,
-    EnumProperty,
-)
-from bpy.types import PropertyGroup, UIList, Operator, Panel, AddonPreferences
-import bmesh
-import bpy_extras
-import sys
-import os
-import site
+from bpy.types import Panel
 
 from .prompt_list import MULTIPROMPT_ENABLED, render_prompt_list
 
-from .data import InitSource, RenderState
+from .data import InitSource, RenderState, get_init_image_dimensions
 from .operators import (
     DS_CancelRenderOperator,
     DS_GetAPIKeyOperator,
     DS_GetSupportOperator,
     DS_OpenDocumentationOperator,
-    DS_OpenWebViewOperator,
     DS_SceneRenderAnimationOperator,
     DS_SceneRenderFrameOperator,
     DreamRenderOperator,
     DreamStateOperator,
 )
-from .send_to_stability import render_img2img, render_text2img
-import multiprocessing as mp
-import threading
-import glob
-import platform
-import tempfile
-import time
 
 
 DS_CATEGORY = "DreamStudio"
@@ -176,9 +153,7 @@ class DreamStudio3DPanel(Panel):
 
 # Validation messages should be no longer than 50 chars or so.
 def validate_settings(settings, scene) -> tuple[bool, str]:
-    width, height = int(settings.init_image_width), int(settings.init_image_height)
-    if settings.use_render_resolution:
-        width, height = int(scene.render.resolution_x), int(scene.render.resolution_y)
+    width, height = get_init_image_dimensions(settings, scene)
     prompts = scene.prompt_list
     # cannot be > 1 megapixel
     if width * height > 1_000_000:
@@ -187,7 +162,6 @@ def validate_settings(settings, scene) -> tuple[bool, str]:
     if not prompts or len(prompts) < 1:
         return False, "Add at least one prompt to the prompt list."
 
-    # TODO when multi prompt is enabled we will need to validate all prompts individually.
     if not MULTIPROMPT_ENABLED:
         if not prompts[0] or prompts[0].prompt == "":
             return False, "Enter a prompt."
