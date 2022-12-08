@@ -212,13 +212,12 @@ class AdvancedOptionsPanelSection(PanelSection, Panel):
     def draw(self, context):
         layout = self.layout
         settings = context.scene.ds_settings
+        use_recommended = settings.use_recommended_settings
 
         if not DreamStateOperator.display_all_options:
             return
 
-        layout.prop(settings, "clip_guidance_preset")
         layout.prop(settings, "cfg_scale", text="Prompt Strength")
-        layout.prop(settings, "steps", text="Steps")
 
         seed_row = layout.row()
         seed_row.prop(settings, "use_custom_seed")
@@ -226,4 +225,20 @@ class AdvancedOptionsPanelSection(PanelSection, Panel):
         seed_input_row.enabled = settings.use_custom_seed
         seed_input_row.prop(settings, "seed")
 
-        layout.prop(settings, "sampler")
+        layout.prop(
+            settings,
+            "use_recommended_settings",
+            text="Use Recommended Quality Settings",
+        )
+
+        steps_row = layout.row()
+        steps_row.prop(settings, "steps", text="Steps")
+        steps_row.enabled = not use_recommended
+
+        clip_guidance_row = layout.row()
+        clip_guidance_row.prop(settings, "clip_guidance_preset")
+        clip_guidance_row.enabled = not use_recommended
+
+        sampler_row = layout.row()
+        sampler_row.prop(settings, "sampler")
+        sampler_row.enabled = not use_recommended

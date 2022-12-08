@@ -28,7 +28,7 @@ from .data import (
     PauseReason,
     RenderState,
     copy_image,
-    format_args_dict,
+    format_rest_args,
     get_init_image_dimensions,
 )
 from .send_to_stability import render_img2img, render_text2img
@@ -102,7 +102,7 @@ class GeneratorWorker(Thread):
     def run(self):
         settings = self.scene.ds_settings
         scene = self.scene
-        args = format_args_dict(settings, scene.prompt_list)
+        args = format_rest_args(settings, scene.prompt_list)
 
         DreamStateOperator.render_state = RenderState.DIFFUSING
         DreamStateOperator.render_start_time = time.time()
@@ -157,7 +157,7 @@ class GeneratorWorker(Thread):
                 if not self.running:
                     return
                 scene.frame_set(i + 1)
-                args = format_args_dict(settings, scene.prompt_list)
+                args = format_rest_args(settings, scene.prompt_list)
                 output_file_path = os.path.join(
                     DreamStateOperator.results_dir, f"result_{i}.png"
                 )

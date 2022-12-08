@@ -83,6 +83,9 @@ class DreamStudioSettings(bpy.types.PropertyGroup):
     )
 
     # Diffusion settings
+    use_recommended_settings: BoolProperty(
+        name="Use Recommended Settings", default=True
+    )
     init_strength: FloatProperty(
         name="Init Strength",
         default=0.5,

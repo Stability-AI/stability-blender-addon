@@ -1,13 +1,27 @@
 from enum import Enum
 import bpy
+from dataclasses import dataclass
 
 
 RENDER_PREFIX = "render_"
 
-# Return a dict to pass to the REST API.
-def format_args_dict(settings, prompt_list_items):
+# Take current state of the scene and use it to format arguments for the REST API.
+def format_rest_args(settings, prompt_list_items):
     prompt_list = [(p.prompt, p.strength) for p in prompt_list_items]
     preferences = bpy.context.preferences.addons[__package__].preferences
+    clip_preset, sampler, steps = (
+        settings.clip_guidance_preset,
+        settings.sampler,
+        settings.steps,
+    )
+    if settings.use_recommended_settings:
+        width, height = get_init_image_dimensions(settings, bpy.context.scene)
+        recommended = get_optimal_engine_config(width, height)
+        clip_preset, sampler, steps = (
+            recommended.guidance_preset,
+            recommended.sampler,
+            recommended.steps,
+        )
     return {
         "api_key": preferences.api_key,
         "base_url": preferences.base_url,
@@ -15,9 +29,9 @@ def format_args_dict(settings, prompt_list_items):
         "guidance_strength": 0.05,
         "init_strength": settings.init_strength,
         "cfg_scale": settings.cfg_scale,
-        "sampler": settings.sampler,
-        "clip_guidance_preset": settings.clip_guidance_preset,
-        "steps": settings.steps,
+        "sampler": sampler,
+        "clip_guidance_preset": clip_preset,
+        "steps": steps,
         "seed": settings.seed,
     }
 
@@ -99,12 +113,6 @@ INIT_SOURCES = [
 # where to send the resulting texture
 OUTPUT_LOCATIONS = [
     (
-        OutputLocation.CURRENT_TEXTURE.name,
-        "Current Texture",
-        "",
-        OutputLocation.CURRENT_TEXTURE.value,
-    ),
-    (
         OutputLocation.NEW_TEXTURE.name,
         "New Texture",
         "",
@@ -150,12 +158,56 @@ class ClipGuidancePreset(Enum):
     SLOWEST = 7
 
 
+class Engine(Enum):
+    GENERATE_1_0 = "stable-diffusion-v1"
+    GENERATE_1_5 = "stable-diffusion-v1-5"
+    GENERATE_512_2_0 = "stable-diffusion-512-v2-0"
+    GENERATE_768_2_0 = "stable-diffusion-768-v2-0"
+    GENERATE_512_2_1 = "stable-diffusion-512-v2-1"
+    GENERATE_768_2_1 = "stable-diffusion-768-v2-1"
+
+
+# set of configurations with a sampler / engine config for each
+# then have a method to get optimal sampler / engine config for a given resolution
+
+
+class EngineConfig:
+    engine: Engine
+    sampler_clip: Sampler
+    sampler_no_clip: Sampler
+    guidance_preset: ClipGuidancePreset
+    steps: int
+
+
+class DefaultEngineConfig(EngineConfig):
+    engine = Engine.GENERATE_1_5
+    sampler_clip = Sampler.K_DPMPP_2S_ANCESTRAL
+    sampler_no_clip = Sampler.K_DPMPP_2M
+    guidance_preset = ClipGuidancePreset.SIMPLE
+    steps = 50
+
+
+class HighResEngineConfig(EngineConfig):
+    engine = Engine.GENERATE_768_2_1
+    sampler_clip = Sampler.K_DPMPP_2S_ANCESTRAL
+    sampler_no_clip = Sampler.K_DPMPP_2M
+    guidance_preset = ClipGuidancePreset.SIMPLE
+    steps = 30
+
+
+def get_optimal_engine_config(width: int, height: int) -> EngineConfig:
+    if width <= 512 and height <= 512:
+        return DefaultEngineConfig()
+    else:
+        return HighResEngineConfig()
+
+
 def enum_to_blender_enum(enum: Enum):
     return [(e.name, e.name, "", e.value) for e in enum]
 
 
 def get_image_size_options(self, context):
     opts = []
-    for opt in range(384, 2048, 64):
+    for opt in range(384, 2048 + 64, 64):
         opts.append((str(opt), str(opt), "", opt))
     return opts
