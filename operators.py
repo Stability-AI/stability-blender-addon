@@ -106,18 +106,23 @@ class GeneratorWorker(Thread):
 
         DreamStateOperator.render_state = RenderState.DIFFUSING
         DreamStateOperator.render_start_time = time.time()
+        output_file_path = os.path.join(DreamStateOperator.results_dir, f"result.png")
+        DreamStateOperator.diffusion_output_path = output_file_path
+        init_image_width, init_image_height = get_init_image_dimensions(settings, scene)
 
         # text2img mode
         if self.init_source == InitSource.NONE:
             DreamStateOperator.render_state = RenderState.DIFFUSING
-            status, reason = render_text2img(res_img_file_location, args)
+            status, reason = render_text2img(
+                DreamStateOperator.diffusion_output_path, args
+            )
             DreamStateOperator.render_state = RenderState.FINISHED
             return
 
         if self.ui_context == UIContext.IMAGE_EDITOR:
             DreamStateOperator.render_state = RenderState.DIFFUSING
             status, reason = render_img2img(
-                DreamStateOperator.init_img_path, res_img_file_location, args
+                DreamStateOperator.init_img_path, output_file_path, args
             )
             if status != 200:
                 raise Exception("Error generating image: {} {}".format(status, reason))
@@ -133,18 +138,14 @@ class GeneratorWorker(Thread):
         )
         rendered_frame_image_paths = glob.glob(frames_glob)
         rendered_frame_image_paths = list(sorted(rendered_frame_image_paths))
-
         if len(rendered_frame_image_paths) == 0:
             raise Exception("No rendered frames found. Please render the scene first.")
 
         # img2img mode
         if self.ui_context == UIContext.SCENE_VIEW_FRAME:
-            res_img_file_location = os.path.join(
-                DreamStateOperator.results_dir, "result.png"
-            )
-            DreamStateOperator.diffusion_output_path = res_img_file_location
+            DreamStateOperator.diffusion_output_path = output_file_path
             frame_img_file = rendered_frame_image_paths[0]
-            status, reason = render_img2img(frame_img_file, res_img_file_location, args)
+            status, reason = render_img2img(frame_img_file, output_file_path, args)
             if status != 200:
                 raise Exception("Error generating image: {} {}".format(status, reason))
         elif DreamStateOperator.ui_context == UIContext.SCENE_VIEW_ANIMATION:
@@ -157,21 +158,19 @@ class GeneratorWorker(Thread):
                     return
                 scene.frame_set(i + 1)
                 args = format_args_dict(settings, scene.prompt_list)
-                res_img_file_location = os.path.join(
+                output_file_path = os.path.join(
                     DreamStateOperator.results_dir, f"result_{i}.png"
                 )
                 rendered_image = bpy.data.images.load(
                     DreamStateOperator.diffusion_output_path
                 )
-                rendered_image.scale()
+                rendered_image.scale(init_image_width, init_image_height)
                 DreamStateOperator.current_frame_idx = i + 1
                 if DreamStateOperator.render_state == RenderState.CANCELLED:
                     break
                 # We need to actually set Blender to a certain frame to evaluate all the keyframe values for that frame.
-                status, reason = render_img2img(
-                    frame_img_file, res_img_file_location, args
-                )
-                print("rendered frame", i, status, reason, res_img_file_location)
+                status, reason = render_img2img(frame_img_file, output_file_path, args)
+                print("rendered frame", i, status, reason, output_file_path)
                 if status != 200:
                     raise Exception(
                         "Error generating image: {} {}".format(status, reason)
@@ -214,7 +213,16 @@ class DreamRenderOperator(Operator):
                 rendered_image = bpy.data.images.load(
                     DreamStateOperator.diffusion_output_path
                 )
-                image_tex_area.spaces.active.image = copy_image(rendered_image)
+                if image_tex_area:
+                    image_tex_area.spaces.active.image = copy_image(rendered_image)
+                else:
+                    # Create a new image editor area
+                    bpy.ops.screen.userpref_show("INVOKE_DEFAULT")
+                    image_tex_area = bpy.context.window_manager.windows[
+                        -1
+                    ].screen.areas[0]
+                    image_tex_area.type = "IMAGE_EDITOR"
+                    image_tex_area.spaces.active.image = copy_image(rendered_image)
             elif (
                 output_location == OutputLocation.FILE_SYSTEM
                 and ui_context != UIContext.SCENE_VIEW_ANIMATION

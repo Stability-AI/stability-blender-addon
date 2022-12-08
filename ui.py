@@ -182,7 +182,7 @@ class PanelSection:
 class RenderOptionsPanelSection(PanelSection, Panel):
 
     bl_parent_id = DreamStudio3DPanel.bl_idname
-    bl_label = "Render Options"
+    bl_label = "Blender Options"
 
     def draw(self, context):
         layout = self.layout
@@ -200,11 +200,13 @@ class RenderOptionsPanelSection(PanelSection, Panel):
         image_size_row.prop(settings, "init_image_height", text="Height")
         image_size_row.prop(settings, "init_image_width", text="Width")
 
+        render_output_location_row(layout, settings)
+
 
 class AdvancedOptionsPanelSection(PanelSection, Panel):
 
     bl_parent_id = DreamStudio3DPanel.bl_idname
-    bl_label = "Advanced Options"
+    bl_label = "DreamStudio Options"
     bl_options = {"DEFAULT_CLOSED"}
 
     def draw(self, context):
@@ -225,5 +227,3 @@ class AdvancedOptionsPanelSection(PanelSection, Panel):
         seed_input_row.prop(settings, "seed")
 
         layout.prop(settings, "sampler")
-
-        render_output_location_row(layout, settings)

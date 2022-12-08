@@ -237,10 +237,11 @@ registered_operators = [
 
 def register():
 
-    bpy.utils.register_class(DreamStudioPreferences)
     addon_updater_ops.register(bl_info)
     for op in prompt_list_operators:
         bpy.utils.register_class(op)
+
+    bpy.utils.register_class(DreamStudioPreferences)
 
     bpy.types.Scene.prompt_list = bpy.props.CollectionProperty(
         type=prompt_list.PromptListItem
