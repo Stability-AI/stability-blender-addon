@@ -131,6 +131,7 @@ def render_img2img_grpc(input_file_location, output_file_location, args):
 def render_text2img(output_file_location, args):
 
     log_sentry_event(TrackingEvent.TEXT2IMG)
+    log_analytics_event(TrackingEvent.TEXT2IMG)
 
     seed = random.randrange(0, 4294967295) if args["seed"] is None else args["seed"]
     payload = {
@@ -174,10 +175,9 @@ def filter_keys(keys, d):
     return {k: d[k] for k in keys if k in d}
 
 
-def record_tracking_event(
+def log_analytics_event(
     tracking_event: TrackingEvent,
     payload: dict,
-    user_id: str = None,
     debug: bool = False,
 ):
     url = "https://www.google-analytics.com/mp/collect?measurement_id=G-321PW7EDCP&api_secret=CPIiVajARdOuRypeU2mOrg"
@@ -190,12 +190,6 @@ def record_tracking_event(
     if set(payload.keys()) != set(TRACKING_EVENTS[tracking_event]):
         raise ValueError(f"Invalid payload for event {tracking_event}")
 
-    if "text_prompts" in payload and len(payload["text_prompts"]) > 0:
-        payload["prompt"] = payload["text_prompts"][0]["text"]
-        payload["text_prompts"] = json.dumps(payload["text_prompts"])
-
-    # https://developers.google.com/analytics/devguides/collection/protocol/v1/parameters
-    # TODO flesh these out.
     platform = "Windows" if os.name == "nt" else "macOS"
     country = "US"
     headers = {

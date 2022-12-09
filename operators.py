@@ -36,7 +36,7 @@ from .data import (
     install_dependencies,
     log_sentry_event,
 )
-from .send_to_stability import render_img2img, render_text2img
+from .send_to_stability import log_analytics_event, render_img2img, render_text2img
 import multiprocessing as mp
 import threading
 import glob
@@ -63,7 +63,8 @@ class DS_CancelRenderOperator(Operator):
     bl_label = "Cancel"
 
     def execute(self, context):
-        log_sentry_event(TrackingEvent.CANCEL_RENDER)
+        log_sentry_event(TrackingEvent.CANCEL_GENERATION)
+        log_analytics_event(TrackingEvent.CANCEL_GENERATION)
         DreamStateOperator.render_state = RenderState.IDLE
         DreamStateOperator.reset_render_state()
         DreamStateOperator.generator_thread.running = False
@@ -434,6 +435,7 @@ class DS_OpenWebViewOperator(Operator):
 
     def execute(self, context):
         log_sentry_event(TrackingEvent.OPEN_WEB_URL)
+        log_analytics_event(TrackingEvent.OPEN_WEB_URL)
         webbrowser.open(self.url)
         return {"FINISHED"}
 
