@@ -177,6 +177,7 @@ def filter_keys(keys, d):
 
 def log_analytics_event(
     tracking_event: TrackingEvent,
+    payload: dict = {},
     debug: bool = False,
 ):
     url = "https://www.google-analytics.com/mp/collect?measurement_id=G-321PW7EDCP&api_secret=CPIiVajARdOuRypeU2mOrg"
