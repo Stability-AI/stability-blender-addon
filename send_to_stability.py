@@ -177,18 +177,11 @@ def filter_keys(keys, d):
 
 def log_analytics_event(
     tracking_event: TrackingEvent,
-    payload: dict,
     debug: bool = False,
 ):
     url = "https://www.google-analytics.com/mp/collect?measurement_id=G-321PW7EDCP&api_secret=CPIiVajARdOuRypeU2mOrg"
     if debug:
         url = "https://www.google-analytics.com/debug/mp/collect?measurement_id=G-321PW7EDCP&api_secret=CPIiVajARdOuRypeU2mOrg"
-
-    if tracking_event not in TRACKING_EVENTS:
-        raise ValueError(f"Unknown event name: {tracking_event}")
-
-    if set(payload.keys()) != set(TRACKING_EVENTS[tracking_event]):
-        raise ValueError(f"Invalid payload for event {tracking_event}")
 
     platform = "Windows" if os.name == "nt" else "macOS"
     country = "US"
