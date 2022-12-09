@@ -166,12 +166,22 @@ class ClipGuidancePreset(Enum):
 
 
 class Engine(Enum):
-    GENERATE_1_0 = "stable-diffusion-v1"
-    GENERATE_1_5 = "stable-diffusion-v1-5"
-    GENERATE_512_2_0 = "stable-diffusion-512-v2-0"
-    GENERATE_768_2_0 = "stable-diffusion-768-v2-0"
-    GENERATE_512_2_1 = "stable-diffusion-512-v2-1"
-    GENERATE_768_2_1 = "stable-diffusion-768-v2-1"
+    GENERATE_1_0 = 0
+    GENERATE_1_5 = 1
+    GENERATE_512_2_0 = 2
+    GENERATE_768_2_0 = 3
+    GENERATE_512_2_1 = 4
+    GENERATE_768_2_1 = 5
+
+
+engine_enum_to_name = {
+    Engine.GENERATE_1_0: "stable-diffusion-v1",
+    Engine.GENERATE_1_5: "stable-diffusion-v1-5",
+    Engine.GENERATE_512_2_0: "stable-diffusion-512-v2-0",
+    Engine.GENERATE_768_2_0: "stable-diffusion-768-v2-0",
+    Engine.GENERATE_512_2_1: "stable-diffusion-512-v2-1",
+    Engine.GENERATE_768_2_1: "stable-diffusion-768-v2-1",
+}
 
 
 # set of configurations with a sampler / engine config for each
@@ -243,3 +253,10 @@ def check_dependencies_installed():
         return True
     except ImportError:
         return False
+
+
+def initialize_sentry():
+    import sentry_sdk
+
+    # TODO reduce this to 0.2 or 0.1 when we release
+    sentry_sdk.init(dsn="", traces_sample_rate=1.0)

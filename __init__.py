@@ -38,9 +38,12 @@ from .data import (
     OUTPUT_LOCATIONS,
     APIType,
     ClipGuidancePreset,
+    Engine,
     Sampler,
+    check_dependencies_installed,
     enum_to_blender_enum,
     get_image_size_options,
+    initialize_sentry,
 )
 from .send_to_stability import render_img2img, render_text2img
 from .prompt_list import (
@@ -107,13 +110,14 @@ class DreamStudioSettings(bpy.types.PropertyGroup):
         default=Sampler.K_DPMPP_2S_ANCESTRAL.value,
         description="The sampler to use for the diffusion process. The default sampler is recommended for most use cases. Check the documentation for a detailed description of the presets.",
     )
-    clip_guidance_preset: EnumProperty(
-        name="CLIP Preset",
-        items=enum_to_blender_enum(ClipGuidancePreset),
-        default=ClipGuidancePreset.SIMPLE.value,
-        description="The guidance preset to use for the diffusion process. The default is recommended for most use cases. Check the documentation for a detailed description of the presets.",
+    generation_engine: EnumProperty(
+        name="Stable Diffusion Engine",
+        items=enum_to_blender_enum(Engine),
+        default=Engine.GENERATE_1_5.value,
+        description="The model and configuration options used for generation",
     )
     use_custom_seed: BoolProperty(name="Use Custom Seed", default=True)
+    clip_guidance: BoolProperty(name="CLIP Guidance", default=True)
     # uint32 max value
     seed: IntProperty(
         name="Seed",
@@ -267,6 +271,10 @@ def register():
     bpy.types.Scene.prompt_list_index = bpy.props.IntProperty(
         name="Index for prompt_list", default=0
     )
+
+    if check_dependencies_installed() and not DreamStateOperator.sentry_initialized:
+        initialize_sentry()
+        DreamStateOperator.sentry_initialized = True
 
     for op in registered_operators:
         bpy.utils.register_class(op)

@@ -27,9 +27,11 @@ from .data import (
     OutputLocation,
     PauseReason,
     RenderState,
+    check_dependencies_installed,
     copy_image,
     format_rest_args,
     get_init_image_dimensions,
+    initialize_sentry,
     install_dependencies,
 )
 from .send_to_stability import render_img2img, render_text2img
@@ -255,6 +257,10 @@ class DreamRenderOperator(Operator):
             DreamStateOperator.render_state = RenderState.PAUSED
             return {"PASS_THROUGH"}
 
+        if check_dependencies_installed() and not DreamStateOperator.sentry_initialized:
+            initialize_sentry()
+            DreamStateOperator.sentry_initialized = True
+
         return {"PASS_THROUGH"}
 
     def execute(self, context):
@@ -342,7 +348,7 @@ class DreamRenderOperator(Operator):
         return {"RUNNING_MODAL"}
 
 
-# State that is held per render, that is not stored as user modified properties.
+# State that is held during runtime, that is not stored as user modified properties.
 # Read within the generation thread, and written to by the main thread.
 class DreamStateOperator(Operator):
     bl_idname = "object.dream_operator"
@@ -359,6 +365,8 @@ class DreamStateOperator(Operator):
     output_dir = None
     results_dir = None
     render_start_time: float = None
+
+    sentry_initialized = False
 
     # Cancel any in-progress render and reset the addon state.
     def reset_render_state():

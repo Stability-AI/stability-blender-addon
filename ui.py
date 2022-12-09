@@ -250,9 +250,10 @@ class AdvancedOptionsPanelSection(PanelSection, Panel):
         steps_row.prop(settings, "steps", text="Steps")
         steps_row.enabled = not use_recommended
 
-        clip_guidance_row = layout.row()
-        clip_guidance_row.prop(settings, "clip_guidance_preset")
-        clip_guidance_row.enabled = not use_recommended
+        engine_selection_row = layout.row()
+        engine_selection_row.prop(settings, "generation_engine")
+        engine_selection_row.enabled = not use_recommended
+        engine_selection_row.prop(settings, "clip_guidance")
 
         sampler_row = layout.row()
         sampler_row.prop(settings, "sampler")
