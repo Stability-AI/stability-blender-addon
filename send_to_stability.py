@@ -180,9 +180,12 @@ def log_analytics_event(
     payload: dict = {},
     debug: bool = False,
 ):
-    url = "https://www.google-analytics.com/mp/collect?measurement_id=G-321PW7EDCP&api_secret=CPIiVajARdOuRypeU2mOrg"
+
+    MEASUREMENT_ID = "G-VSQBN4R3ZS"
+    API_SECRET = "YR_AFHGuSS-VtCQXIhb2Fg"
+    url = f"https://www.google-analytics.com/mp/collect?measurement_id={MEASUREMENT_ID}&api_secret={API_SECRET}"
     if debug:
-        url = "https://www.google-analytics.com/debug/mp/collect?measurement_id=G-321PW7EDCP&api_secret=CPIiVajARdOuRypeU2mOrg"
+        url = f"https://www.google-analytics.com/debug/mp/collect?measurement_id={MEASUREMENT_ID}&api_secret={API_SECRET}"
 
     platform = "Windows" if os.name == "nt" else "macOS"
     country = "US"
