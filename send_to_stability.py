@@ -20,8 +20,6 @@ def render_img2img(input_file_location, output_file_location, args):
 
 
 def render_img2img_rest(input_file_location, output_file_location, args):
-    prompts = [{"text": p[0], "weight": p[1]} for p in args["prompts"]]
-
     seed = random.randrange(0, 4294967295) if args["seed"] is None else args["seed"]
     all_options = {
         "cfg_scale": args["cfg_scale"],
@@ -32,7 +30,7 @@ def render_img2img_rest(input_file_location, output_file_location, args):
         "step_schedule_end": 0.01,
         "step_schedule_start": 1.0 - args["init_strength"],
         "steps": args["steps"],
-        "text_prompts": prompts,
+        "text_prompts": args["prompts"],
         "width": 512,
     }
 
@@ -90,47 +88,43 @@ def render_img2img_grpc(input_file_location, output_file_location, args):
     sampler = get_sampler_from_str(sampler_name)
 
     init_img = Image.open(input_file_location)
-    hit_safety_filter = True
     res_img = None
     seed = random.randrange(0, 4294967295) if args["seed"] is None else args["seed"]
-    prompts = [{"text": p[0], "weight": p[1]} for p in args["prompts"]]
-    if not MULTIPROMPT_ENABLED:
-        prompts = prompts[0]["text"]
-    while hit_safety_filter:
-        frame_seed = seed
-        answers = stability_inference.generate(
-            prompt=prompts,
-            init_image=init_img,
-            width=init_img.width if init_img is not None else args["width"],
-            height=init_img.height if init_img is not None else args["height"],
-            start_schedule=1.0 - args["init_strength"],
-            cfg_scale=args["cfg_scale"],
-            steps=args["steps"],
-            guidance_strength=args["guidance_strength"],
-            sampler=sampler,
-            seed=frame_seed,
-        )
+    if MULTIPROMPT_ENABLED:
+        prompts = args["prompts"]
+    else:
+        prompts = args["prompts"][0]["text"]
+    frame_seed = seed
+    answers = stability_inference.generate(
+        prompt=prompts,
+        init_image=init_img,
+        width=init_img.width if init_img is not None else args["width"],
+        height=init_img.height if init_img is not None else args["height"],
+        start_schedule=1.0 - args["init_strength"],
+        cfg_scale=args["cfg_scale"],
+        steps=args["steps"],
+        guidance_strength=args["guidance_strength"],
+        sampler=sampler,
+        seed=frame_seed,
+    )
 
-        for answer in answers:
-            for artifact in answer.artifacts:
-                print("type", artifact.type, "finish reason", artifact.finish_reason)
-                if (
-                    artifact.finish_reason
-                    == interfaces.gooseai.generation.generation_pb2.FILTER
-                ):
-                    frame_seed += 1
-                    break
-                if (
-                    artifact.type
-                    == interfaces.gooseai.generation.generation_pb2.ARTIFACT_IMAGE
-                ):
-                    res_img = Image.open(io.BytesIO(artifact.binary))
-                    res_img.save(output_file_location)
-                    hit_safety_filter = False
-    if res_img is None:
-        # TODO actual error surfacing
-        return 500, "No image returned from server"
-    return 200, "Success"
+    # TODO handle errors in here more gracefully. Look at REST or SDK code
+    for answer in answers:
+        for artifact in answer.artifacts:
+            print("type", artifact.type, "finish reason", artifact.finish_reason)
+            if (
+                artifact.finish_reason
+                == interfaces.gooseai.generation.generation_pb2.FILTER
+            ):
+                return 401, "Safety filter hit"
+            if (
+                artifact.type
+                == interfaces.gooseai.generation.generation_pb2.ARTIFACT_IMAGE
+            ):
+                res_img = Image.open(io.BytesIO(artifact.binary))
+                res_img.save(output_file_location)
+                return 200, "Success"
+    return 500, "No image returned from server"
 
 
 def render_text2img(output_file_location, args):

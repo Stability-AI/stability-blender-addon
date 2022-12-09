@@ -243,17 +243,20 @@ class AdvancedOptionsPanelSection(PanelSection, Panel):
         layout.prop(
             settings,
             "use_recommended_settings",
-            text="Use Recommended Quality Settings",
         )
 
         steps_row = layout.row()
         steps_row.prop(settings, "steps", text="Steps")
         steps_row.enabled = not use_recommended
 
+        # Disallow interpolating these params
         engine_selection_row = layout.row()
+        engine_selection_row.use_property_split = False
+        engine_selection_row.use_property_decorate = False
         engine_selection_row.prop(settings, "generation_engine")
         engine_selection_row.enabled = not use_recommended
-        engine_selection_row.prop(settings, "clip_guidance")
+        engine_selection_row.scale_x = 0.5
+        engine_selection_row.prop(settings, "use_clip_guidance")
 
         sampler_row = layout.row()
         sampler_row.prop(settings, "sampler")

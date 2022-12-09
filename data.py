@@ -9,12 +9,13 @@ import sys
 
 RENDER_PREFIX = "render_"
 
+
 # Take current state of the scene and use it to format arguments for the REST API.
 def format_rest_args(settings, prompt_list_items):
-    prompt_list = [(p.prompt, p.strength) for p in prompt_list_items]
+    prompt_list = [{"text": p.prompt, "weight": p.strength} for p in prompt_list_items]
     preferences = bpy.context.preferences.addons[__package__].preferences
-    clip_preset, sampler, steps = (
-        settings.clip_guidance_preset,
+    use_clip, sampler, steps = (
+        settings.use_clip_guidance,
         settings.sampler,
         settings.steps,
     )
@@ -23,7 +24,7 @@ def format_rest_args(settings, prompt_list_items):
         recommended = get_optimal_engine_config(width, height)
         clip_preset, sampler, steps = (
             recommended.guidance_preset,
-            recommended.sampler_clip,
+            recommended.sampler_clip if use_clip else recommended.sampler,
             recommended.steps,
         )
     return {
@@ -223,6 +224,14 @@ def enum_to_blender_enum(enum: Enum):
     return [(e.name, e.name, "", e.value) for e in enum]
 
 
+def engine_to_blender_enum():
+    options = []
+    for engine in Engine.__members__.values():
+        engine_name = engine_enum_to_name[engine]
+        options.append((engine_name, engine_name, "", engine.value))
+    return options
+
+
 def get_image_size_options(self, context):
     opts = []
     for opt in range(384, 2048 + 64, 64):
@@ -243,7 +252,6 @@ def install_dependencies():
         print(res.stdout)
 
 
-# TODO find a better way to verify this.
 def check_dependencies_installed():
     try:
         import stability_sdk
@@ -259,4 +267,8 @@ def initialize_sentry():
     import sentry_sdk
 
     # TODO reduce this to 0.2 or 0.1 when we release
-    sentry_sdk.init(dsn="", traces_sample_rate=1.0)
+    sentry_sdk.init(
+        dsn="https://a5cc2b7983c24638af48ee316d4a00da@o1345497.ingest.sentry.io/45042996955709440",
+        traces_sample_rate=1.0,
+    )
+    print("Sentry initialized.")

@@ -41,6 +41,7 @@ from .data import (
     Engine,
     Sampler,
     check_dependencies_installed,
+    engine_to_blender_enum,
     enum_to_blender_enum,
     get_image_size_options,
     initialize_sentry,
@@ -90,7 +91,9 @@ class DreamStudioSettings(bpy.types.PropertyGroup):
 
     # Diffusion settings
     use_recommended_settings: BoolProperty(
-        name="Use Recommended Settings", default=True
+        name="Use Recommended Quality Settings",
+        default=True,
+        description="Use the Stability-recommended quality settings for your current render settings",
     )
     init_strength: FloatProperty(
         name="Init Strength",
@@ -102,6 +105,8 @@ class DreamStudioSettings(bpy.types.PropertyGroup):
     cfg_scale: FloatProperty(
         name="Prompt Strength",
         default=7.5,
+        min=0,
+        max=20,
         description="How much the prompt should influence the resulting image. 7.5 is a good starting point",
     )
     sampler: EnumProperty(
@@ -111,20 +116,24 @@ class DreamStudioSettings(bpy.types.PropertyGroup):
         description="The sampler to use for the diffusion process. The default sampler is recommended for most use cases. Check the documentation for a detailed description of the presets.",
     )
     generation_engine: EnumProperty(
-        name="Stable Diffusion Engine",
-        items=enum_to_blender_enum(Engine),
+        name="Engine",
+        items=engine_to_blender_enum(),
         default=Engine.GENERATE_1_5.value,
         description="The model and configuration options used for generation",
     )
-    use_custom_seed: BoolProperty(name="Use Custom Seed", default=True)
-    clip_guidance: BoolProperty(name="CLIP Guidance", default=True)
+    use_custom_seed: BoolProperty(
+        name="Set Seed",
+        default=True,
+        description="Use a custom seed for the diffusion process. This allows you to reproduce the same results for the same input frame. If unchecked, a different random seed will be used for each frame",
+    )
+    use_clip_guidance: BoolProperty(name="Use CLIP", default=True)
     # uint32 max value
     seed: IntProperty(
         name="Seed",
         default=0,
         min=0,
         max=2147483647,
-        description="The seet fixes which random numbers are used for the diffusion process. This allows you to reproduce the same results for the same input frame. May also help with consistency across frames if you are rendering an animation",
+        description="The seed fixes which random numbers are used for the diffusion process. This allows you to reproduce the same results for the same input frame. May also help with consistency across frames if you are rendering an animation",
     )
 
     # Render output settings
@@ -147,7 +156,7 @@ class DreamStudioSettings(bpy.types.PropertyGroup):
     re_render: BoolProperty(
         name="Re-Render",
         default=True,
-        description="Whether to re-render the scene before sending it to the model",
+        description="Whether to re-render the scene before sending it to the model. If unchecked, the model will use the last rendered frame or set of frames",
     )
 
     # Output settings
@@ -155,10 +164,10 @@ class DreamStudioSettings(bpy.types.PropertyGroup):
         name="Init Source",
         items=INIT_SOURCES,
         default=2,
-        description="The source of the initial image. The default is the rendered frame. The other options are the active image or a new image in the image editor.",
+        description="The source of the initial image. Select Scene Render to render the current frame and use that render as the init image, or select Image Editor to use the currently open image in the image editor as the init image. Select None to just use the prompt text to generate the image",
     )
     output_location: EnumProperty(
-        name="Display output",
+        name="Output",
         items=OUTPUT_LOCATIONS,
         default=2,
         description="The location to save the output image. The default is to open the result as a new image in the image editor. The other options are to output the images to the file system, and open the explorer to the image when diffusion is complete, or replace the existing image in the image editor.",

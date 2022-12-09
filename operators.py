@@ -68,7 +68,7 @@ class DS_CancelRenderOperator(Operator):
 
 
 class DS_SceneRenderFrameOperator(Operator):
-    """Render a single frame."""
+    """Render the current frame, then send to Stability SDK for diffusion"""
 
     bl_idname = "dreamstudio.render_frame"
     bl_label = "Cancel"
@@ -81,7 +81,7 @@ class DS_SceneRenderFrameOperator(Operator):
 
 
 class DS_SceneRenderAnimationOperator(Operator):
-    """Render an entire animation."""
+    """Render an entire animation as a sequence of frames, then send to Stability SDK for diffusion"""
 
     bl_idname = "dreamstudio.render_animation"
     bl_label = "Cancel"
@@ -103,6 +103,14 @@ class GeneratorWorker(Thread):
         Thread.__init__(self)
 
     def run(self):
+        try:
+            self.generate()
+        except Exception:
+            DreamStateOperator.render_state = RenderState.IDLE
+            DreamStateOperator.reset_render_state()
+            raise
+
+    def generate(self):
         settings = self.scene.ds_settings
         scene = self.scene
         args = format_rest_args(settings, scene.prompt_list)
@@ -124,6 +132,13 @@ class GeneratorWorker(Thread):
 
         if self.ui_context == UIContext.IMAGE_EDITOR:
             DreamStateOperator.render_state = RenderState.DIFFUSING
+            if not os.path.exists(DreamStateOperator.init_img_path):
+                DreamStateOperator.reset_render_state()
+                raise Exception(
+                    "No image found at {}. Does the texture exist?".format(
+                        DreamStateOperator.init_img_path
+                    )
+                )
             status, reason = render_img2img(
                 DreamStateOperator.init_img_path, output_file_path, args
             )
@@ -139,6 +154,12 @@ class GeneratorWorker(Thread):
         # img2img mode
         if self.ui_context == UIContext.SCENE_VIEW_FRAME:
             DreamStateOperator.diffusion_output_path = output_file_path
+            if not os.path.exists(DreamStateOperator.init_img_path):
+                raise Exception(
+                    "No image found at {}. Was the scene rendered, or is re-render disabled?".format(
+                        DreamStateOperator.init_img_path
+                    )
+                )
             status, reason = render_img2img(
                 DreamStateOperator.init_img_path, output_file_path, args
             )
@@ -257,10 +278,6 @@ class DreamRenderOperator(Operator):
             DreamStateOperator.render_state = RenderState.PAUSED
             return {"PASS_THROUGH"}
 
-        if check_dependencies_installed() and not DreamStateOperator.sentry_initialized:
-            initialize_sentry()
-            DreamStateOperator.sentry_initialized = True
-
         return {"PASS_THROUGH"}
 
     def execute(self, context):
@@ -376,8 +393,11 @@ class DreamStateOperator(Operator):
         self.current_frame_idx = 0
         self.render_start_time = None
         if self.generator_thread:
-            self.generator_thread.running = False
-            self.generator_thread.join(100)
+            try:
+                self.generator_thread.running = False
+                self.generator_thread.join(100)
+            except Exception as e:
+                print(e)
 
 
 # Create and clear render directories. This function should get all filesystem info for rendering,
@@ -406,32 +426,41 @@ class DS_OpenWebViewOperator(Operator):
     url = None
 
     def execute(self, context):
-        if not self.url:
-            raise Exception("No URL specified")
+        division_by_zero = 1 / 0
         webbrowser.open(self.url)
         return {"FINISHED"}
 
 
 class DS_GetAPIKeyOperator(DS_OpenWebViewOperator, Operator):
+    """Open a link to the API key page in your web browser"""
+
     bl_idname = "dreamstudio.get_api_key"
     url = "https://beta.dreamstudio.ai/membership?tab=apiKeys"
 
 
 class DS_OpenDocumentationOperator(DS_OpenWebViewOperator, Operator):
+    """Open a link to the documentation page in your web browser"""
+
     bl_idname = "dreamstudio.open_documentation"
     url = "https://platform.stability.ai/"
 
 
 # TODO find a better support link
 class DS_GetSupportOperator(DS_OpenWebViewOperator, Operator):
+    """Open a link to the support page in your web browser"""
+
     bl_idname = "dreamstudio.get_support"
     url = "https://platform.stability.ai/"
 
 
 class DS_InstallDependenciesOperator(Operator):
+    """Force a reinstall of plugin dependencies"""
+
     bl_idname = "dreamstudio.install_dependencies"
     bl_label = "Install"
 
     def execute(self, context):
         install_dependencies()
+        initialize_sentry()
+        DreamStateOperator.sentry_initialized = True
         return {"FINISHED"}

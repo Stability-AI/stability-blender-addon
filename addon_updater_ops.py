@@ -236,7 +236,7 @@ class AddonUpdaterInstallPopup(bpy.types.Operator):
 
 # User preference check-now operator
 class AddonUpdaterCheckNow(bpy.types.Operator):
-    bl_label = "Check now for " + updater.addon + " update"
+    bl_label = "Check now for updates"
     bl_idname = updater.addon + ".updater_check_now"
     bl_description = "Check now for an update to the {} addon".format(updater.addon)
     bl_options = {"REGISTER", "INTERNAL"}
