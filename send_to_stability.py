@@ -7,12 +7,13 @@ import time
 from enum import Enum
 import bpy
 from .prompt_list import MULTIPROMPT_ENABLED
-from .data import APIType
+from .data import TRACKING_EVENTS, APIType, TrackingEvent, log_sentry_event
 
 
 def render_img2img(input_file_location, output_file_location, args):
     preferences = bpy.context.preferences.addons[__package__].preferences
     api_type = APIType[preferences.api_type]
+    log_sentry_event(TrackingEvent.IMG2IMG)
     if api_type == APIType.REST:
         return render_img2img_rest(input_file_location, output_file_location, args)
     if api_type == APIType.GRPC:
@@ -129,7 +130,7 @@ def render_img2img_grpc(input_file_location, output_file_location, args):
 
 def render_text2img(output_file_location, args):
 
-    prompts = [{"text": p[0], "weight": p[1]} for p in args["prompts"]]
+    log_sentry_event(TrackingEvent.TEXT2IMG)
 
     seed = random.randrange(0, 4294967295) if args["seed"] is None else args["seed"]
     payload = {
@@ -141,7 +142,7 @@ def render_text2img(output_file_location, args):
         "step_schedule_end": 0.01,
         "step_schedule_start": 1.0 - args["init_strength"],
         "steps": args["steps"],
-        "text_prompts": prompts,
+        "text_prompts": args["prompts"],
         "width": 512,
     }
 
@@ -169,37 +170,8 @@ def render_text2img(output_file_location, args):
     return response.status_code, msg
 
 
-TRACKED_GENERATION_PARAMS = [
-    "cfg_scale",
-    "clip_guidance_preset",
-    "width",
-    "height",
-    "sampler",
-    "seed",
-    "step_schedule_end",
-    "step_schedule_start",
-    "steps",
-    "text_prompts",
-]
-
-
 def filter_keys(keys, d):
-    print(keys)
     return {k: d[k] for k in keys if k in d}
-
-
-class TrackingEvent(Enum):
-    TEXT2IMG = 1
-    IMG2IMG = 2
-    CANCEL_GENERATION = 3
-
-
-# TODO track crashes, and exceptions as well
-TRACKING_EVENTS = {
-    TrackingEvent.TEXT2IMG: TRACKED_GENERATION_PARAMS,
-    TrackingEvent.IMG2IMG: TRACKED_GENERATION_PARAMS,
-    TrackingEvent.CANCEL_GENERATION: [],
-}
 
 
 def record_tracking_event(

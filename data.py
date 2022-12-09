@@ -5,6 +5,19 @@ import ensurepip
 import os
 import subprocess
 import sys
+import platform
+
+
+bl_info = {
+    "name": "Dream Studio",
+    "author": "Stability AI",
+    "description": "",
+    "blender": (2, 80, 0),
+    "version": (0, 0, 1),
+    "location": "",
+    "warning": "",
+    "category": "AI",
+}
 
 
 RENDER_PREFIX = "render_"
@@ -263,12 +276,59 @@ def check_dependencies_installed():
         return False
 
 
+class TrackingEvent(Enum):
+    TEXT2IMG = 1
+    IMG2IMG = 2
+    CANCEL_GENERATION = 3
+    OPEN_WEB_URL = 4
+
+
+TRACKED_GENERATION_PARAMS = [
+    "cfg_scale",
+    "clip_guidance_preset",
+    "width",
+    "height",
+    "sampler",
+    "seed",
+    "step_schedule_end",
+    "step_schedule_start",
+    "steps",
+    "text_prompts",
+]
+
+
+# TODO track crashes, and exceptions as well
+TRACKING_EVENTS = {
+    TrackingEvent.TEXT2IMG: TRACKED_GENERATION_PARAMS,
+    TrackingEvent.IMG2IMG: TRACKED_GENERATION_PARAMS,
+    TrackingEvent.CANCEL_GENERATION: [],
+}
+
+
 def initialize_sentry():
     import sentry_sdk
 
     # TODO reduce this to 0.2 or 0.1 when we release
     sentry_sdk.init(
-        dsn="https://a5cc2b7983c24638af48ee316d4a00da@o1345497.ingest.sentry.io/45042996955709440",
+        dsn="https://a5cc2b7983c24638af48ee316d4a00da@o1345497.ingest.sentry.io/4504299695570944",
         traces_sample_rate=1.0,
+        environment="testing",
     )
-    print("Sentry initialized.")
+    sentry_sdk.set_context(
+        "system",
+        {
+            "blender_version": bpy.app.version_string,
+            "operating_system_version": platform.version(),
+            "operating_system_name": platform.system(),
+            "addon_version": bl_info["version"].__str__(),
+        },
+    )
+
+
+def log_sentry_event(event: TrackingEvent):
+    if not check_dependencies_installed():
+        return
+    from sentry_sdk import capture_message, add_breadcrumb
+
+    capture_message(event.name, level="info")
+    add_breadcrumb(message=event.name, level="info")

@@ -22,6 +22,7 @@ import webbrowser
 
 from .data import (
     RENDER_PREFIX,
+    TrackingEvent,
     UIContext,
     InitSource,
     OutputLocation,
@@ -33,6 +34,7 @@ from .data import (
     get_init_image_dimensions,
     initialize_sentry,
     install_dependencies,
+    log_sentry_event,
 )
 from .send_to_stability import render_img2img, render_text2img
 import multiprocessing as mp
@@ -61,6 +63,7 @@ class DS_CancelRenderOperator(Operator):
     bl_label = "Cancel"
 
     def execute(self, context):
+        log_sentry_event(TrackingEvent.CANCEL_RENDER)
         DreamStateOperator.render_state = RenderState.IDLE
         DreamStateOperator.reset_render_state()
         DreamStateOperator.generator_thread.running = False
@@ -105,10 +108,14 @@ class GeneratorWorker(Thread):
     def run(self):
         try:
             self.generate()
-        except Exception:
+        except Exception as e:
+            if check_dependencies_installed():
+                from sentry_sdk import capture_exception
+
+                capture_exception(e)
             DreamStateOperator.render_state = RenderState.IDLE
             DreamStateOperator.reset_render_state()
-            raise
+            raise e
 
     def generate(self):
         settings = self.scene.ds_settings
@@ -426,7 +433,7 @@ class DS_OpenWebViewOperator(Operator):
     url = None
 
     def execute(self, context):
-        division_by_zero = 1 / 0
+        log_sentry_event(TrackingEvent.OPEN_WEB_URL)
         webbrowser.open(self.url)
         return {"FINISHED"}
 

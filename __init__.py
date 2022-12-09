@@ -34,6 +34,7 @@ from .ui import (
 from . import addon_updater_ops
 
 from .data import (
+    bl_info,
     INIT_SOURCES,
     OUTPUT_LOCATIONS,
     APIType,
@@ -56,18 +57,6 @@ from .prompt_list import (
 import threading
 import glob
 import sys
-
-
-bl_info = {
-    "name": "Dream Studio",
-    "author": "Stability AI",
-    "description": "",
-    "blender": (2, 80, 0),
-    "version": (0, 0, 1),
-    "location": "",
-    "warning": "",
-    "category": "AI",
-}
 
 # Update the entire UI when this property changes.
 def ui_update(self, context):
