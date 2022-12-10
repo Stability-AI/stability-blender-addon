@@ -337,6 +337,16 @@ def log_sentry_event(event: TrackingEvent):
     add_breadcrumb(message=event.name, level="info")
 
 
+def check_video_dependencies_installed():
+    try:
+        from stability_sdk import client
+        from stability_sdk.animation import AnimationArgs, Animator
+
+        return True
+    except ImportError:
+        return False
+
+
 def install_video_dependencies():
     path = Path("stability-sdk")
     if path.exists():
@@ -347,3 +357,7 @@ def install_video_dependencies():
     )
     Path("./stability-sdk/src/stability_sdk/interfaces/__init__.py").touch()
     os.system("pip install ./stability-sdk")
+    sys.path.append("stability-sdk/src/stability_sdk/interfaces/src/tensorizer"),
+    sys.path.append(
+        "stability-sdk/src/stability_sdk/interfaces/src/tensorizer/tensors"
+    ),

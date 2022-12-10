@@ -268,8 +268,9 @@ def register():
     bpy.utils.register_class(DreamStudioPreferences)
 
     bpy.types.Scene.prompt_list = bpy.props.CollectionProperty(
-        type=prompt_list.PromptListItem
+        type=PromptListItem,
     )
+
     bpy.types.Scene.prompt_list_index = bpy.props.IntProperty(
         name="Index for prompt_list", default=0
     )
@@ -285,6 +286,7 @@ def register():
 
 
 def unregister():
+    addon_updater_ops.unregister()
     for op in registered_operators + prompt_list_operators:
         bpy.utils.unregister_class(op)
     del bpy.types.Scene.ds_settings

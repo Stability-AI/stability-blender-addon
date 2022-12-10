@@ -29,6 +29,7 @@ from .data import (
     PauseReason,
     RenderState,
     check_dependencies_installed,
+    check_video_dependencies_installed,
     copy_image,
     format_rest_args,
     get_init_image_dimensions,
@@ -170,6 +171,7 @@ class GeneratorWorker(Thread):
             return
 
         render_file_type = scene.render.image_settings.file_format
+        # TODO hack. remove
         if render_file_type == "JPEG":
             render_file_type = "JPG"
 
@@ -187,7 +189,7 @@ class GeneratorWorker(Thread):
             )
             if status != 200:
                 raise Exception("Error generating image: {} {}".format(status, reason))
-        elif DreamStateOperator.ui_context == UIContext.SCENE_VIEW_ANIMATION:
+        elif self.ui_context == UIContext.SCENE_VIEW_ANIMATION:
             frames_glob = os.path.join(
                 DreamStateOperator.output_dir,
                 "{}*.{}".format(RENDER_PREFIX, render_file_type.lower()),
@@ -225,6 +227,32 @@ class GeneratorWorker(Thread):
                         "Error generating image: {} {}".format(status, reason)
                     )
             scene.frame_set(0)
+        elif self.ui_context == UIContext.SCENE_VIEW_VIDEO:
+            args = format_rest_args(settings, scene.prompt_list)
+            GRPC_HOST = "grpc-animation.stability.ai:443"
+            from stability_sdk import client
+            from stability_sdk.animation import AnimationArgs, Animator
+
+            stub = client.open_channel(GRPC_HOST, api_key=args["api_key"])
+            api = client.Api(stub)
+
+            animation_prompts = {
+                0: "a painting of a delicious cheeseburger by Tyler Edlin",
+                24: "a painting of the the answer to life the universe and everything by Tyler Edlin",
+            }
+
+            animator = Animator(
+                api=api,
+                animation_prompts=animation_prompts,
+                args=args,
+                out_dir=DreamStateOperator.output_dir,
+            )
+            for frame in range(
+                animator.render(),
+                initial=animator.start_frame_idx,
+                total=args.max_frames,
+            ):
+                DreamStateOperator.current_frame_idx = frame
 
         DreamStateOperator.render_state = RenderState.FINISHED
 
@@ -314,7 +342,10 @@ class DreamRenderOperator(Operator):
         if context.area.type == "IMAGE_EDITOR":
             ui_context = UIContext.IMAGE_EDITOR
         output_dir, results_dir = setup_render_directories(clear=re_render)
-        render_anim = ui_context == UIContext.SCENE_VIEW_ANIMATION
+        render_anim = ui_context in (
+            UIContext.SCENE_VIEW_ANIMATION,
+            UIContext.SCENE_VIEW_VIDEO,
+        )
         DreamStateOperator.output_dir = output_dir
         DreamStateOperator.results_dir = results_dir
         if render_anim:
@@ -327,8 +358,24 @@ class DreamRenderOperator(Operator):
             )
         init_image_width, init_image_height = get_init_image_dimensions(settings, scene)
 
-        # If we are in the image editor, we need to save the image to a temporary file to use for init
+        # We only support rendering from the render in the 3D view
         if (
+            ui_context == UIContext.SCENE_VIEW_ANIMATION
+            or ui_context == UIContext.SCENE_VIEW_FRAME
+        ):
+            init_source = InitSource.SCENE_RENDER
+
+        if ui_context == UIContext.SCENE_VIEW_VIDEO:
+            if not check_video_dependencies_installed():
+                install_video_dependencies()
+            res = bpy.ops.render.render(write_still=True, animation=render_anim)
+            scene.render.filepath = user_filepath
+            if res != {"FINISHED"}:
+                raise Exception("Failed to render: {}".format(res))
+            scene.render.filepath = DreamStateOperator.init_img_path
+
+        # If we are in the image editor, we need to save the image to a temporary file to use for init
+        elif (
             ui_context == UIContext.IMAGE_EDITOR
             and init_source == InitSource.CURRENT_TEXTURE
         ):
@@ -339,15 +386,8 @@ class DreamRenderOperator(Operator):
             init_image.scale(init_image_width, init_image_height)
             init_image.save_render(DreamStateOperator.init_img_path)
 
-        # We only support rendering from the render in the 3D view
-        if (
-            ui_context == UIContext.SCENE_VIEW_ANIMATION
-            or ui_context == UIContext.SCENE_VIEW_FRAME
-        ):
-            init_source = InitSource.SCENE_RENDER
-
         # Render 3D view
-        if init_source == InitSource.SCENE_RENDER and (
+        elif init_source == InitSource.SCENE_RENDER and (
             (
                 ui_context
                 in (UIContext.SCENE_VIEW_ANIMATION, UIContext.SCENE_VIEW_FRAME)

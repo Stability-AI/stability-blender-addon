@@ -2,7 +2,7 @@ import bpy
 from bpy.props import StringProperty, IntProperty, CollectionProperty, FloatProperty
 from bpy.types import PropertyGroup, UIList, Operator, Panel, UILayout
 
-MULTIPROMPT_ENABLED = False
+MULTIPROMPT_ENABLED = True
 
 
 class PromptListItem(PropertyGroup):
