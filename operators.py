@@ -34,6 +34,7 @@ from .data import (
     get_init_image_dimensions,
     initialize_sentry,
     install_dependencies,
+    install_video_dependencies,
     log_sentry_event,
 )
 from .send_to_stability import log_analytics_event, render_img2img, render_text2img
@@ -79,6 +80,19 @@ class DS_SceneRenderFrameOperator(Operator):
 
     def execute(self, context):
         DreamStateOperator.ui_context = UIContext.SCENE_VIEW_FRAME
+        DreamStateOperator.render_state = RenderState.RENDERING
+        bpy.ops.dreamstudio.dream_render_operator()
+        return {"FINISHED"}
+
+
+class DS_SceneRenderVideoInitOperator(Operator):
+    """Render the current frame, then send to Stability SDK for diffusion"""
+
+    bl_idname = "dreamstudio.render_video"
+    bl_label = "Cancel"
+
+    def execute(self, context):
+        DreamStateOperator.ui_context = UIContext.SCENE_VIEW_VIDEO
         DreamStateOperator.render_state = RenderState.RENDERING
         bpy.ops.dreamstudio.dream_render_operator()
         return {"FINISHED"}
@@ -470,6 +484,7 @@ class DS_InstallDependenciesOperator(Operator):
 
     def execute(self, context):
         install_dependencies()
+        install_video_dependencies()
         initialize_sentry()
         DreamStateOperator.sentry_initialized = True
         return {"FINISHED"}

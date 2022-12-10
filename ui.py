@@ -17,6 +17,7 @@ from .operators import (
     DS_OpenDocumentationOperator,
     DS_SceneRenderAnimationOperator,
     DS_SceneRenderFrameOperator,
+    DS_SceneRenderVideoInitOperator,
     DreamRenderOperator,
     DreamStateOperator,
 )
@@ -154,13 +155,18 @@ class DreamStudio3DPanel(Panel):
         else:
             layout.label(text="Ready to dream!", icon="CHECKMARK")
 
-        row = layout.row()
-        row.scale_y = 2.0
-        row.operator(
+        dream_btn_row = layout.row()
+        dream_btn_row.scale_y = 2.0
+        dream_btn_row.operator(
             DS_SceneRenderAnimationOperator.bl_idname, text="Dream (Animation)"
         )
-        row.operator(DS_SceneRenderFrameOperator.bl_idname, text="Dream (Frame)")
-        row.enabled = valid
+        dream_btn_row.operator(
+            DS_SceneRenderFrameOperator.bl_idname, text="Dream (Frame)"
+        )
+        dream_btn_row.operator(
+            DS_SceneRenderVideoInitOperator.bl_idname, text="Dream (Video)"
+        )
+        dream_btn_row.enabled = valid
 
 
 # Validation messages should be no longer than 50 chars or so.
@@ -216,6 +222,13 @@ class RenderOptionsPanelSection(PanelSection, Panel):
         image_size_row.prop(settings, "init_image_width", text="Width")
 
         render_output_location_row(layout, settings)
+
+
+class AnimationOptionsPanelSection(PanelSection, Panel):
+
+    bl_parent_id = DreamStudio3DPanel.bl_idname
+    bl_label = "Animation Options"
+    bl_options = {"DEFAULT_CLOSED"}
 
 
 class AdvancedOptionsPanelSection(PanelSection, Panel):

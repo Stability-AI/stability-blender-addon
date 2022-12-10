@@ -1,4 +1,6 @@
 from enum import Enum
+from pathlib import Path
+import shutil
 import bpy
 from dataclasses import dataclass
 import ensurepip
@@ -154,7 +156,8 @@ OUTPUT_LOCATIONS = [
 class UIContext(Enum):
     SCENE_VIEW_ANIMATION = 1
     SCENE_VIEW_FRAME = 2
-    IMAGE_EDITOR = 3
+    SCENE_VIEW_VIDEO = 3
+    IMAGE_EDITOR = 4
 
 
 class Sampler(Enum):
@@ -332,3 +335,15 @@ def log_sentry_event(event: TrackingEvent):
 
     capture_message(event.name, level="info")
     add_breadcrumb(message=event.name, level="info")
+
+
+def install_video_dependencies():
+    path = Path("stability-sdk")
+    if path.exists():
+        shutil.rmtree(path)
+        os.system("pip uninstall -y stability-sdk")
+    os.system(
+        "git clone -b anima.nb.20221207 --recurse-submodules https://github.com/Stability-AI/stability-sdk"
+    )
+    Path("./stability-sdk/src/stability_sdk/interfaces/__init__.py").touch()
+    os.system("pip install ./stability-sdk")

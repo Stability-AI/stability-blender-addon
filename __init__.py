@@ -1,4 +1,6 @@
 from enum import Enum
+from pathlib import Path
+import shutil
 import bpy
 from bpy.props import (
     PointerProperty,
@@ -18,6 +20,7 @@ from .operators import (
     DS_OpenDocumentationOperator,
     DS_SceneRenderAnimationOperator,
     DS_SceneRenderFrameOperator,
+    DS_SceneRenderVideoInitOperator,
     DreamStateOperator,
     DS_CancelRenderOperator,
     DS_ContinueRenderOperator,
@@ -246,6 +249,7 @@ registered_operators = [
     DS_ContinueRenderOperator,
     DS_SceneRenderAnimationOperator,
     DS_SceneRenderFrameOperator,
+    DS_SceneRenderVideoInitOperator,
     DreamStateOperator,
     DreamStudio3DPanel,
     AdvancedOptionsPanelSection,
