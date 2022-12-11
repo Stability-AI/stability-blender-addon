@@ -14,6 +14,7 @@ from bpy.props import (
 from bpy.types import AddonPreferences
 import os
 from .operators import (
+    DS_ExportKeyframesOperator,
     DS_GetAPIKeyOperator,
     DS_GetSupportOperator,
     DS_InstallDependenciesOperator,
@@ -256,6 +257,7 @@ registered_operators = [
     RenderOptionsPanelSection,
     DS_InstallDependenciesOperator,
     DS_GetAPIKeyOperator,
+    DS_ExportKeyframesOperator,
 ]
 
 

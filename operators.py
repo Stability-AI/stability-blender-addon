@@ -117,7 +117,7 @@ class DS_SceneRenderAnimationOperator(Operator):
 class DS_ExportKeyframesOperator(Operator):
     """Render an entire animation as a sequence of frames, then send to Stability SDK for diffusion"""
 
-    bl_idname = "dreamstudio.render_animation"
+    bl_idname = "dreamstudio.export_frames"
     bl_label = "Cancel"
 
     def execute(self, context):

@@ -151,9 +151,7 @@ class DreamStudio3DPanel(Panel):
 
         render_prompt_list(scene, layout)
 
-        dream_btn_row.operator(
-            DS_ExportKeyframesOperator.bl_idname, text="Export Keyframes"
-        )
+        layout.operator(DS_ExportKeyframesOperator.bl_idname, text="Export Keyframes")
 
         if not valid:
             layout.label(text=validation_msg, icon="ERROR")
