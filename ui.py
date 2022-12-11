@@ -11,6 +11,7 @@ from .data import (
 )
 from .operators import (
     DS_CancelRenderOperator,
+    DS_ExportKeyframesOperator,
     DS_GetAPIKeyOperator,
     DS_GetSupportOperator,
     DS_InstallDependenciesOperator,
@@ -149,6 +150,10 @@ class DreamStudio3DPanel(Panel):
         valid, validation_msg = validate_settings(settings, scene)
 
         render_prompt_list(scene, layout)
+
+        dream_btn_row.operator(
+            DS_ExportKeyframesOperator.bl_idname, text="Export Keyframes"
+        )
 
         if not valid:
             layout.label(text=validation_msg, icon="ERROR")
