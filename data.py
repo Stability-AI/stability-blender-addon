@@ -364,18 +364,20 @@ def install_video_dependencies():
 
 
 def get_keyframes(obj):
-    curve_pts, formatted = [], []
+    curve_pts, all_formatted = [], {}
     fcurves = obj.animation_data.action.fcurves
 
     for curve in fcurves:
         points = curve.keyframe_points
+        path = curve.data_path
+        formatted = []
         for keyframe in points:
             formatted.append(
-                "{}:({}),".format(int(keyframe.co[0]), round(keyframe.co[1], 2)), end=""
+                "{}:({})".format(int(keyframe.co[0]), round(keyframe.co[1], 2)), end=""
             )
             curve_pts.append(keyframe.co[1])
-        formatted.append("\n")
-    return curve_pts, formatted
+        all_formatted[path] = ",".join(formatted)
+    return curve_pts, all_formatted
 
 
 def convert_keyframe_string(kf_str):

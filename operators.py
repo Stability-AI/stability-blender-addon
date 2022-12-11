@@ -19,6 +19,7 @@ import site
 from threading import Thread
 import time
 import webbrowser
+import json
 
 from .data import (
     RENDER_PREFIX,
@@ -33,6 +34,7 @@ from .data import (
     copy_image,
     format_rest_args,
     get_init_image_dimensions,
+    get_keyframes,
     initialize_sentry,
     install_dependencies,
     install_video_dependencies,
@@ -109,6 +111,28 @@ class DS_SceneRenderAnimationOperator(Operator):
         DreamStateOperator.ui_context = UIContext.SCENE_VIEW_ANIMATION
         DreamStateOperator.render_state = RenderState.RENDERING
         bpy.ops.dreamstudio.dream_render_operator()
+        return {"FINISHED"}
+
+
+class DS_ExportKeyframesOperator(Operator):
+    """Render an entire animation as a sequence of frames, then send to Stability SDK for diffusion"""
+
+    bl_idname = "dreamstudio.render_animation"
+    bl_label = "Cancel"
+
+    def execute(self, context):
+        all_keyframes = []
+        output_dir, results_dir = setup_render_directories(clear=False)
+        objs = {}
+        for obj in bpy.context.scene.objects:
+            print(obj.name, obj, obj.type)
+            if obj.type in ("MESH", "CAMERA"):
+                pts, formatted = get_keyframes(obj)
+            objs[obj.name] = formatted
+        output_file = os.path.join(output_dir, "keyframes.json")
+        with open(output_file, "w") as f:
+            f.write(json.dumps(objs))
+
         return {"FINISHED"}
 
 
