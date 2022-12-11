@@ -361,3 +361,38 @@ def install_video_dependencies():
     sys.path.append(
         "stability-sdk/src/stability_sdk/interfaces/src/tensorizer/tensors"
     ),
+
+
+def get_keyframes(obj):
+    curve_pts, formatted = [], []
+    fcurves = obj.animation_data.action.fcurves
+
+    for curve in fcurves:
+        points = curve.keyframe_points
+        for keyframe in points:
+            formatted.append(
+                "{}:({}),".format(int(keyframe.co[0]), round(keyframe.co[1], 2)), end=""
+            )
+            curve_pts.append(keyframe.co[1])
+        formatted.append("\n")
+    return curve_pts, formatted
+
+
+def convert_keyframe_string(kf_str):
+    out = []
+    kf_items = kf_str.split(",")
+    for kf in kf_items:
+        if kf:
+            frame = kf.split(":")
+            out.append([int(frame[0]), float(frame[1][1:-1])])
+    return out
+
+
+def set_keyframes(input, obj):
+    fcurves = obj.animation_data.action.fcurves
+
+    data = convert_keyframe_string(input)
+    for curve in fcurves:
+        keyframe_pts = curve.keyframe_points
+        for i in data:
+            keyframe_pts.insert(i[0], i[1])
