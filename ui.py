@@ -137,6 +137,8 @@ class DreamStudio3DPanel(Panel):
         if not check_dependencies_installed():
             DreamStateOperator.render_state = RenderState.ONBOARDING
 
+        layout.operator(DS_ExportKeyframesOperator.bl_idname, text="Export Keyframes")
+
         if DreamStateOperator.render_state == RenderState.ONBOARDING:
             render_onboard_view(layout)
             return
@@ -150,8 +152,6 @@ class DreamStudio3DPanel(Panel):
         valid, validation_msg = validate_settings(settings, scene)
 
         render_prompt_list(scene, layout)
-
-        layout.operator(DS_ExportKeyframesOperator.bl_idname, text="Export Keyframes")
 
         if not valid:
             layout.label(text=validation_msg, icon="ERROR")

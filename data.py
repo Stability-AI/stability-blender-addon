@@ -363,22 +363,34 @@ def install_video_dependencies():
     ),
 
 
+XYZ_IDX = ("x", "y", "z")
+
+
 def get_keyframes(obj):
     curve_pts, all_formatted = [], {}
     if not obj.animation_data:
         return curve_pts, all_formatted
     fcurves = obj.animation_data.action.fcurves
+    frame_end = bpy.context.scene.frame_end
 
     for curve in fcurves:
+        idx = curve.array_index
         points = curve.keyframe_points
-        path = curve.data_path
+        datapath = curve.data_path
+        mult = 1
+        if datapath == "location":
+            mult = 0.1
+        if datapath == "rotation_euler":
+            mult = 0.1
+        if idx is not None:
+            datapath += "." + XYZ_IDX[idx]
         formatted = []
         for keyframe in points:
             formatted.append(
-                "{}:({})".format(int(keyframe.co[0]), round(keyframe.co[1], 2))
+                "{}:({})".format(int(keyframe.co[0]), round(keyframe.co[1], 4) * mult)
             )
             curve_pts.append(keyframe.co[1])
-        all_formatted[path] = ",".join(formatted)
+        all_formatted[datapath] = ",".join(formatted) + ","
     return curve_pts, all_formatted
 
 

@@ -97,6 +97,8 @@ class DS_SceneRenderVideoInitOperator(Operator):
     def execute(self, context):
         DreamStateOperator.ui_context = UIContext.SCENE_VIEW_VIDEO
         DreamStateOperator.render_state = RenderState.RENDERING
+        # TODO remove, this is a hack
+        bpy.ops.wm.redraw_timer(type="DRAW_WIN_SWAP", iterations=1)
         bpy.ops.dreamstudio.dream_render_operator()
         return {"FINISHED"}
 
@@ -110,6 +112,8 @@ class DS_SceneRenderAnimationOperator(Operator):
     def execute(self, context):
         DreamStateOperator.ui_context = UIContext.SCENE_VIEW_ANIMATION
         DreamStateOperator.render_state = RenderState.RENDERING
+        # TODO remove, this is a hack
+        bpy.ops.wm.redraw_timer(type="DRAW_WIN_SWAP", iterations=1)
         bpy.ops.dreamstudio.dream_render_operator()
         return {"FINISHED"}
 
@@ -128,10 +132,12 @@ class DS_ExportKeyframesOperator(Operator):
             print(obj.name, obj, obj.type)
             if obj.type in ("MESH", "CAMERA"):
                 pts, formatted = get_keyframes(obj)
-            objs[obj.name] = formatted
+                objs[obj.name] = formatted
         output_file = os.path.join(output_dir, "keyframes.json")
         with open(output_file, "w") as f:
             f.write(json.dumps(objs))
+
+        os.system("open " + output_dir)
 
         return {"FINISHED"}
 
