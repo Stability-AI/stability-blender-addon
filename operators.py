@@ -401,7 +401,7 @@ class DreamStateOperator(Operator):
         if self.generator_thread:
             try:
                 self.generator_thread.running = False
-                self.generator_thread.join(10)
+                self.generator_thread.join(1)
             except Exception as e:
                 print(e)
 
