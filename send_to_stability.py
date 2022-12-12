@@ -14,6 +14,8 @@ def render_img2img(input_file_location, output_file_location, args):
     preferences = bpy.context.preferences.addons[__package__].preferences
     api_type = APIType[preferences.api_type]
     log_sentry_event(TrackingEvent.IMG2IMG)
+    # HACK
+    return render_img2img_rest(input_file_location, output_file_location, args)
     if api_type == APIType.REST:
         return render_img2img_rest(input_file_location, output_file_location, args)
     if api_type == APIType.GRPC:
@@ -85,9 +87,7 @@ def render_img2img_grpc(input_file_location, output_file_location, args):
         key=args["api_key"], host=args["base_url"]
     )
 
-    sampler_name = args["sampler"].name.lower().strip()
-    sampler = get_sampler_from_str(sampler_name)
-
+    sampler = get_sampler_from_str(args["sampler"])
     init_img = Image.open(input_file_location)
     res_img = None
     seed = random.randrange(0, 4294967295) if args["seed"] is None else args["seed"]
@@ -167,12 +167,7 @@ def render_text2img(output_file_location, args):
     else:
         res_body = response.json()
         msg = res_body["message"]
-        print(msg)
     return response.status_code, msg
-
-
-def filter_keys(keys, d):
-    return {k: d[k] for k in keys if k in d}
 
 
 def log_analytics_event(

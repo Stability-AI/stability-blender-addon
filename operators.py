@@ -66,8 +66,8 @@ class DS_CancelRenderOperator(Operator):
         log_sentry_event(TrackingEvent.CANCEL_GENERATION)
         log_analytics_event(TrackingEvent.CANCEL_GENERATION)
         DreamStateOperator.render_state = RenderState.IDLE
-        DreamStateOperator.reset_render_state()
         DreamStateOperator.generator_thread.running = False
+        DreamStateOperator.reset_render_state()
         return {"FINISHED"}
 
 
@@ -196,9 +196,7 @@ class GeneratorWorker(Thread):
                 output_file_path = os.path.join(
                     DreamStateOperator.results_dir, f"result_{i}.png"
                 )
-                rendered_image = bpy.data.images.load(
-                    DreamStateOperator.diffusion_output_path
-                )
+                rendered_image = bpy.data.images.load(frame_img_file)
                 rendered_image.scale(init_image_width, init_image_height)
                 DreamStateOperator.current_frame_idx = i + 1
                 if DreamStateOperator.render_state == RenderState.CANCELLED:
@@ -403,7 +401,7 @@ class DreamStateOperator(Operator):
         if self.generator_thread:
             try:
                 self.generator_thread.running = False
-                self.generator_thread.join(100)
+                self.generator_thread.join(10)
             except Exception as e:
                 print(e)
 
@@ -455,11 +453,11 @@ class DS_OpenDocumentationOperator(DS_OpenWebViewOperator, Operator):
 
 
 # TODO find a better support link
-class DS_GetSupportOperator(DS_OpenWebViewOperator, Operator):
+class DS_LogIssueOperator(DS_OpenWebViewOperator, Operator):
     """Open a link to the support page in your web browser"""
 
-    bl_idname = "dreamstudio.get_support"
-    url = "https://platform.stability.ai/"
+    bl_idname = "dreamstudio.log_issue"
+    url = "https://github.com/Stability-AI/stability-blender-addon/issues"
 
 
 class DS_InstallDependenciesOperator(Operator):

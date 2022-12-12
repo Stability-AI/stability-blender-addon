@@ -10,7 +10,7 @@ from bpy.props import (
 from bpy.types import AddonPreferences
 from .operators import (
     DS_GetAPIKeyOperator,
-    DS_GetSupportOperator,
+    DS_LogIssueOperator,
     DS_InstallDependenciesOperator,
     DS_OpenDocumentationOperator,
     DS_SceneRenderAnimationOperator,
@@ -43,6 +43,7 @@ from .data import (
     initialize_sentry,
 )
 from .prompt_list import (
+    MULTIPROMPT_ENABLED,
     PromptList_NewItem,
     PromptList_RemoveItem,
     PromptListItem,
@@ -117,7 +118,11 @@ class DreamStudioSettings(bpy.types.PropertyGroup):
 
     # Render output settings
     re_render: BoolProperty(name="Re-Render Scene", default=True)
-    use_render_resolution: BoolProperty(name="Use Render Resolution", default=True)
+    use_render_resolution: BoolProperty(
+        name="Use Render Resolution",
+        default=True,
+        description="Use the resolution in Blender's Output Properties as the size of the init image.",
+    )
     init_image_height: EnumProperty(
         name="Init Image Height",
         default=1,
@@ -162,7 +167,9 @@ class DreamStudioPreferences(AddonPreferences):
     api_key: StringProperty(
         name="API Key", default="sk-Yc1fipqiDj98UVwEvVTP6OPgQmRk8cFRUSx79K9D3qCiNAFy"
     )
-    base_url: StringProperty(name="REST API Base URL", default="grpc.stability.ai:443")
+    base_url: StringProperty(
+        name="API Base URL", default="https://api.stability.ai/v1alpha"
+    )
 
     api_type: EnumProperty(
         name="API Protocol",
@@ -228,7 +235,7 @@ prompt_list_operators = [
 
 registered_operators = [
     DS_OpenDocumentationOperator,
-    DS_GetSupportOperator,
+    DS_LogIssueOperator,
     DreamStudioSettings,
     DreamRenderOperator,
     DreamStudioImageEditorPanel,
@@ -251,8 +258,6 @@ def register():
     for op in prompt_list_operators:
         bpy.utils.register_class(op)
 
-    bpy.utils.register_class(DreamStudioPreferences)
-
     bpy.types.Scene.prompt_list = bpy.props.CollectionProperty(
         type=prompt_list.PromptListItem
     )
@@ -267,6 +272,7 @@ def register():
     for op in registered_operators:
         bpy.utils.register_class(op)
 
+    bpy.utils.register_class(DreamStudioPreferences)
     bpy.types.Scene.ds_settings = PointerProperty(type=DreamStudioSettings)
 
 

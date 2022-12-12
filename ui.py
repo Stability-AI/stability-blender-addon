@@ -8,11 +8,12 @@ from .data import (
     RenderState,
     check_dependencies_installed,
     get_init_image_dimensions,
+    get_preferences,
 )
 from .operators import (
     DS_CancelRenderOperator,
     DS_GetAPIKeyOperator,
-    DS_GetSupportOperator,
+    DS_LogIssueOperator,
     DS_InstallDependenciesOperator,
     DS_OpenDocumentationOperator,
     DS_SceneRenderAnimationOperator,
@@ -58,9 +59,7 @@ def render_links_row(layout):
     links_row.operator(
         DS_OpenDocumentationOperator.bl_idname, text="Open Docs", icon="TEXT"
     )
-    links_row.operator(
-        DS_GetSupportOperator.bl_idname, text="Get Support", icon="QUESTION"
-    )
+    links_row.operator(DS_LogIssueOperator.bl_idname, text="Log Issue", icon="QUESTION")
 
 
 def render_output_location_row(layout, settings):
@@ -84,9 +83,9 @@ class DreamStudioImageEditorPanel(Panel):
         layout = self.layout
         settings = context.scene.ds_settings
 
-        preferences = bpy.context.preferences.addons[__package__].preferences
+        preferences = get_preferences()
 
-        if not preferences.api_key or preferences.api_key == "":
+        if preferences and (not preferences.api_key or preferences.api_key == ""):
             DreamStateOperator.render_state = RenderState.ONBOARDING
 
         if not check_dependencies_installed():
@@ -100,11 +99,10 @@ class DreamStudioImageEditorPanel(Panel):
             render_in_progress_view(layout)
             return
 
-        render_links_row(layout)
-
         render_prompt_list(context.scene, layout)
 
         layout.operator(DreamRenderOperator.bl_idname, text="Dream (Texture)")
+        render_links_row(layout)
 
 
 # UI for the scene view panel.
@@ -115,21 +113,16 @@ class DreamStudio3DPanel(Panel):
     bl_region_type = "UI"
     bl_category = DS_CATEGORY
 
-    def redraw():
-        for region in bpy.context.area.regions:
-            if region.type == "UI":
-                region.tag_redraw()
-
     def draw(self, context):
         settings = context.scene.ds_settings
         scene = context.scene
-        preferences = bpy.context.preferences.addons[__package__].preferences
+        preferences = get_preferences()
 
         layout = self.layout
         layout.use_property_split = True
         layout.use_property_decorate = True
 
-        if not preferences.api_key or preferences.api_key == "":
+        if preferences and (not preferences.api_key or preferences.api_key == ""):
             DreamStateOperator.render_state = RenderState.ONBOARDING
 
         if not check_dependencies_installed():
@@ -142,8 +135,6 @@ class DreamStudio3DPanel(Panel):
         if DreamStateOperator.render_state != RenderState.IDLE:
             render_in_progress_view(layout)
             return
-
-        render_links_row(layout)
 
         valid, validation_msg = validate_settings(settings, scene)
 
@@ -161,6 +152,7 @@ class DreamStudio3DPanel(Panel):
         )
         row.operator(DS_SceneRenderFrameOperator.bl_idname, text="Dream (Frame)")
         row.enabled = valid
+        render_links_row(layout)
 
 
 # Validation messages should be no longer than 50 chars or so.
@@ -168,11 +160,13 @@ def validate_settings(settings, scene) -> tuple[bool, str]:
     width, height = get_init_image_dimensions(settings, scene)
     prompts = scene.prompt_list
     # cannot be > 1 megapixel
-    if width * height > 1_000_000:
-        return False, "Image size cannot be greater than 1 megapixel."
+    init_source = InitSource[settings.init_source]
+    if init_source != InitSource.NONE:
+        if width * height > 1_000_000:
+            return False, "Image size cannot be greater than 1 megapixel."
 
-    if not prompts or len(prompts) < 1:
-        return False, "Add at least one prompt to the prompt list."
+        if not prompts or len(prompts) < 1:
+            return False, "Add at least one prompt to the prompt list."
 
     if not MULTIPROMPT_ENABLED:
         if not prompts[0] or prompts[0].prompt == "":

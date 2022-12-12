@@ -26,7 +26,7 @@ RENDER_PREFIX = "render_"
 # Take current state of the scene and use it to format arguments for the REST API.
 def format_rest_args(settings, prompt_list_items):
     prompt_list = [{"text": p.prompt, "weight": p.strength} for p in prompt_list_items]
-    preferences = bpy.context.preferences.addons[__package__].preferences
+    preferences = get_preferences()
     use_clip, sampler, steps = (
         settings.use_clip_guidance,
         settings.sampler,
@@ -37,9 +37,11 @@ def format_rest_args(settings, prompt_list_items):
         recommended = get_optimal_engine_config(width, height)
         clip_preset, sampler, steps = (
             recommended.guidance_preset,
-            recommended.sampler_clip if use_clip else recommended.sampler,
+            recommended.sampler_clip if use_clip else recommended.sampler_no_clip,
             recommended.steps,
         )
+    sampler_name = sampler.name.strip().upper()
+    clip_preset_name = clip_preset.name.strip().upper()
     return {
         "api_key": preferences.api_key,
         "base_url": preferences.base_url,
@@ -47,8 +49,8 @@ def format_rest_args(settings, prompt_list_items):
         "guidance_strength": 0.05,
         "init_strength": settings.init_strength,
         "cfg_scale": settings.cfg_scale,
-        "sampler": sampler,
-        "clip_guidance_preset": clip_preset,
+        "sampler": sampler_name,
+        "clip_guidance_preset": clip_preset_name,
         "steps": steps,
         "seed": settings.seed,
     }
@@ -125,12 +127,13 @@ class OutputLocation(Enum):
 # Used to display the init source property in the UI
 INIT_SOURCES = [
     (InitSource.NONE.name, "None", "", InitSource.NONE.value),
-    (
-        InitSource.CURRENT_TEXTURE.name,
-        "Current Texture",
-        "",
-        InitSource.CURRENT_TEXTURE.value,
-    ),
+    # TODO disabled, until we add a texture picker
+    # (
+    #     InitSource.CURRENT_TEXTURE.name,
+    #     "Current Texture",
+    #     "",
+    #     InitSource.CURRENT_TEXTURE.value,
+    # ),
     (InitSource.SCENE_RENDER.name, "Scene Render", "", InitSource.SCENE_RENDER.value),
 ]
 
@@ -265,9 +268,10 @@ def install_dependencies():
         print(res.stdout)
 
 
-def check_dependencies_installed():
+def check_dependencies_installed(using_grpc: bool = False) -> bool:
     try:
-        import stability_sdk
+        if using_grpc:
+            import stability_sdk
         import sentry_sdk
         import PIL
 
@@ -332,3 +336,10 @@ def log_sentry_event(event: TrackingEvent):
 
     capture_message(event.name, level="info")
     add_breadcrumb(message=event.name, level="info")
+
+
+def get_preferences():
+    all_addons = bpy.context.preferences.addons
+    if __package__ not in all_addons:
+        return None
+    return bpy.context.preferences.addons[__package__].preferences
