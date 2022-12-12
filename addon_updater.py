@@ -688,8 +688,8 @@ class SingletonUpdater:
                 request.add_header("PRIVATE-TOKEN", self._engine.token)
             elif self._engine.name == "github":
                 request.add_header("Authorization", "Bearer " + self._engine.token)
-                request.add_header("X-GitHub-Api-Version", "2022-11-28")
-                request.add_header("Accept", "application/vnd.github+json")
+        request.add_header("X-GitHub-Api-Version", "2022-11-28")
+        request.add_header("Accept", "application/vnd.github+json")
 
         # Always set user agent.
         request.add_header("User-Agent", "Python/" + str(platform.python_version()))
@@ -789,7 +789,8 @@ class SingletonUpdater:
                 if self._engine.name == "gitlab":
                     request.add_header("PRIVATE-TOKEN", self._engine.token)
                 else:
-                    self.print_verbose("Tokens not setup for selected engine yet")
+                    request.add_header("Authorization", "Bearer " + self._engine.token)
+            request.add_header("X-GitHub-Api-Version", "2022-11-28")
 
             # Always set user agent
             request.add_header("User-Agent", "Python/" + str(platform.python_version()))
