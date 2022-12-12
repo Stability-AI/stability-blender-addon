@@ -190,7 +190,7 @@ class DreamStudioPreferences(AddonPreferences):
     auto_check_update = bpy.props.BoolProperty(
         name="Auto-check for Update",
         description="If enabled, auto-check for updates using an interval",
-        default=False,
+        default=True,
     )
 
     updater_interval_months = bpy.props.IntProperty(
@@ -211,7 +211,7 @@ class DreamStudioPreferences(AddonPreferences):
     updater_interval_hours = bpy.props.IntProperty(
         name="Hours",
         description="Number of hours between checking for updates",
-        default=0,
+        default=1,
         min=0,
         max=23,
     )
@@ -224,17 +224,23 @@ class DreamStudioPreferences(AddonPreferences):
         max=59,
     )
 
+    updater_access_token = bpy.props.StringProperty(
+        name="Updater Access Token",
+        description="Access token for the updater to use for access to private builds of the addon.",
+    )
+
     def draw(self, context):
         layout = self.layout
         layout.prop(self, "api_type")
         layout.prop(self, "api_key")
         layout.prop(self, "base_url")
+        layout.prop(self, "updater_access_token")
         layout.operator(
             DS_InstallDependenciesOperator.bl_idname,
             text="Reinstall Dependencies",
             icon="CONSOLE",
         )
-        addon_updater_ops.update_settings_ui(self, context)
+        addon_updater_ops.update_settings_ui_condensed(self, context)
 
 
 prompt_list_operators = [

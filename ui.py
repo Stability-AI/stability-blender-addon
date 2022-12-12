@@ -1,3 +1,4 @@
+from . import addon_updater_ops
 import bpy
 from bpy.types import Panel
 
@@ -89,6 +90,8 @@ class DreamStudioImageEditorPanel(Panel):
 
         preferences = get_preferences()
 
+        addon_updater_ops.update_notice_box_ui(self, context)
+
         if preferences and (not preferences.api_key or preferences.api_key == ""):
             DreamStateOperator.render_state = RenderState.ONBOARDING
 
@@ -125,6 +128,8 @@ class DreamStudio3DPanel(Panel):
         layout = self.layout
         layout.use_property_split = True
         layout.use_property_decorate = True
+
+        addon_updater_ops.update_notice_box_ui(self, context)
 
         if (
             preferences
