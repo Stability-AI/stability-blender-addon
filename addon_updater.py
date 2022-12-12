@@ -41,6 +41,7 @@ from datetime import datetime, timedelta
 # Blender imports, used in limited cases.
 import bpy
 import addon_utils
+from .data import get_preferences
 
 # -----------------------------------------------------------------------------
 # The main class
@@ -130,6 +131,7 @@ class SingletonUpdater:
             return tag["zipball_url"]
 
         self._select_link = select_link_function
+        self._token = None
 
     def print_trace(self):
         """Print handled exception details when use_print_traces is set"""
@@ -685,7 +687,9 @@ class SingletonUpdater:
             if self._engine.name == "gitlab":
                 request.add_header("PRIVATE-TOKEN", self._engine.token)
             elif self._engine.name == "github":
-                request.add_header("Authorization", "token " + self._engine.token)
+                request.add_header("Authorization", "Bearer " + self._engine.token)
+                request.add_header("X-GitHub-Api-Version", "2022-11-28")
+                request.add_header("Accept", "application/vnd.github+json")
 
         # Always set user agent.
         request.add_header("User-Agent", "Python/" + str(platform.python_version()))
@@ -1252,6 +1256,10 @@ class SingletonUpdater:
         but should have a parent which calls it in another thread.
         """
         self.print_verbose("Checking for update function")
+
+        prefs = get_preferences()
+        self._token = prefs.updater_access_token
+        self._engine.token = self._token
 
         # clear the errors if any
         self._error = None
