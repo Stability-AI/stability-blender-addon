@@ -1,4 +1,3 @@
-from enum import Enum
 import bpy
 from bpy.props import (
     PointerProperty,
@@ -7,10 +6,8 @@ from bpy.props import (
     EnumProperty,
     BoolProperty,
     StringProperty,
-    CollectionProperty,
 )
 from bpy.types import AddonPreferences
-import os
 from .operators import (
     DS_GetAPIKeyOperator,
     DS_GetSupportOperator,
@@ -21,7 +18,6 @@ from .operators import (
     DreamStateOperator,
     DS_CancelRenderOperator,
     DS_ContinueRenderOperator,
-    UIContext,
     DreamRenderOperator,
 )
 
@@ -38,7 +34,6 @@ from .data import (
     INIT_SOURCES,
     OUTPUT_LOCATIONS,
     APIType,
-    ClipGuidancePreset,
     Engine,
     Sampler,
     check_dependencies_installed,
@@ -47,16 +42,11 @@ from .data import (
     get_image_size_options,
     initialize_sentry,
 )
-from .send_to_stability import render_img2img, render_text2img
 from .prompt_list import (
     PromptList_NewItem,
     PromptList_RemoveItem,
     PromptListItem,
-    PromptListUIItem,
 )
-import threading
-import glob
-import sys
 
 # Update the entire UI when this property changes.
 def ui_update(self, context):
@@ -284,3 +274,5 @@ def unregister():
     for op in registered_operators + prompt_list_operators:
         bpy.utils.unregister_class(op)
     del bpy.types.Scene.ds_settings
+    bpy.utils.unregister_class(DreamStudioPreferences)
+    addon_updater_ops.unregister()
