@@ -28,15 +28,14 @@ from .ui import (
     RenderOptionsPanelSection,
 )
 from . import addon_updater_ops
+from .dependencies import check_dependencies_installed
 
 from .data import (
-    bl_info,
     INIT_SOURCES,
     OUTPUT_LOCATIONS,
     APIType,
     Engine,
     Sampler,
-    check_dependencies_installed,
     engine_to_blender_enum,
     enum_to_blender_enum,
     get_image_size_options,
@@ -56,6 +55,18 @@ def ui_update(self, context):
             region.tag_redraw()
     print("update ui")
     return None
+
+
+bl_info = {
+    "name": "Dream Studio",
+    "author": "Stability AI",
+    "description": "",
+    "blender": (2, 80, 0),
+    "version": (0, 0, 1),
+    "location": "",
+    "warning": "",
+    "category": "AI",
+}
 
 
 class DreamStudioSettings(bpy.types.PropertyGroup):
@@ -164,9 +175,8 @@ class DreamStudioSettings(bpy.types.PropertyGroup):
 class DreamStudioPreferences(AddonPreferences):
     bl_idname = __package__
 
-    api_key: StringProperty(
-        name="API Key", default="sk-Yc1fipqiDj98UVwEvVTP6OPgQmRk8cFRUSx79K9D3qCiNAFy"
-    )
+    api_key: StringProperty(name="API Key", default="")
+
     base_url: StringProperty(
         name="API Base URL", default="https://api.stability.ai/v1alpha"
     )
@@ -174,7 +184,7 @@ class DreamStudioPreferences(AddonPreferences):
     api_type: EnumProperty(
         name="API Protocol",
         items=enum_to_blender_enum(APIType),
-        default=APIType.GRPC.value,
+        default=APIType.REST.value,
     )
 
     auto_check_update = bpy.props.BoolProperty(
@@ -274,6 +284,7 @@ def register():
 
     bpy.utils.register_class(DreamStudioPreferences)
     bpy.types.Scene.ds_settings = PointerProperty(type=DreamStudioSettings)
+    bpy.context.preferences.use_preferences_save = True
 
 
 def unregister():

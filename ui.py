@@ -44,8 +44,12 @@ def render_in_progress_view(layout):
 
 
 def render_onboard_view(layout):
+    prefs = get_preferences()
     layout.label(text="Please enter your API key.")
-    layout.label(text="Enter in File -> Preferences -> Add-ons -> AI: Dream Studio")
+    api_key_row = layout.row()
+    api_key_row.use_property_split = False
+    api_key_row.use_property_decorate = False
+    api_key_row.prop(prefs, "api_key")
     layout.label(text="You can find it by pressing the button below:")
     layout.operator(DS_GetAPIKeyOperator.bl_idname, text="Get API Key", icon="URL")
     layout.label(text="Then, install SDK dependencies.")
@@ -122,11 +126,14 @@ class DreamStudio3DPanel(Panel):
         layout.use_property_split = True
         layout.use_property_decorate = True
 
-        if preferences and (not preferences.api_key or preferences.api_key == ""):
+        if (
+            preferences
+            and (not preferences.api_key or preferences.api_key == "")
+            or not check_dependencies_installed()
+        ):
             DreamStateOperator.render_state = RenderState.ONBOARDING
-
-        if not check_dependencies_installed():
-            DreamStateOperator.render_state = RenderState.ONBOARDING
+        elif DreamStateOperator.render_state == RenderState.ONBOARDING:
+            DreamStateOperator.render_state = RenderState.IDLE
 
         if DreamStateOperator.render_state == RenderState.ONBOARDING:
             render_onboard_view(layout)
@@ -195,12 +202,11 @@ class RenderOptionsPanelSection(PanelSection, Panel):
         settings = context.scene.ds_settings
         use_custom_res = not settings.use_render_resolution
         init_source = InitSource[settings.init_source]
+        if DreamStateOperator.render_state == RenderState.ONBOARDING:
+            return
         layout.prop(settings, "init_source")
         if init_source != InitSource.NONE:
             layout.prop(settings, "init_strength")
-
-        if DreamStateOperator.render_state == RenderState.ONBOARDING:
-            return
 
         layout.prop(settings, "re_render")
         layout.prop(settings, "use_render_resolution")

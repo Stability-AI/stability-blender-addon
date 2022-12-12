@@ -28,15 +28,14 @@ from .data import (
     OutputLocation,
     PauseReason,
     RenderState,
-    check_dependencies_installed,
     copy_image,
     format_rest_args,
     get_init_image_dimensions,
     initialize_sentry,
-    install_dependencies,
     log_sentry_event,
 )
-from .send_to_stability import log_analytics_event, render_img2img, render_text2img
+from .dependencies import install_dependencies, check_dependencies_installed
+from .requests import log_analytics_event, render_img2img, render_text2img
 import multiprocessing as mp
 import threading
 import glob

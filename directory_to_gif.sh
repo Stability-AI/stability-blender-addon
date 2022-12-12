@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Convert a directory of images to a gif.
+# Convert a directory of images to GIFs.
 # Usage: directory_to_gif.sh directory_name output_name.gif
 
 # Get the directory name and output name from the command line.

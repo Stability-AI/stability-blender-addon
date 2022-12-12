@@ -8,19 +8,8 @@ import sys
 import platform
 
 
-bl_info = {
-    "name": "Dream Studio",
-    "author": "Stability AI",
-    "description": "",
-    "blender": (2, 80, 0),
-    "version": (0, 0, 1),
-    "location": "",
-    "warning": "",
-    "category": "AI",
-}
-
-
 RENDER_PREFIX = "render_"
+from .dependencies import check_dependencies_installed, install_dependencies
 
 
 # Take current state of the scene and use it to format arguments for the REST API.
@@ -126,7 +115,7 @@ class OutputLocation(Enum):
 
 # Used to display the init source property in the UI
 INIT_SOURCES = [
-    (InitSource.NONE.name, "None", "", InitSource.NONE.value),
+    (InitSource.NONE.name, "None (Text2Img)", "", InitSource.NONE.value),
     # TODO disabled, until we add a texture picker
     # (
     #     InitSource.CURRENT_TEXTURE.name,
@@ -255,31 +244,6 @@ def get_image_size_options(self, context):
     return opts
 
 
-def install_dependencies():
-    ensurepip.bootstrap()
-    os.environ.pop("PIP_REQ_TRACKER", None)
-    env = os.environ.copy()
-    env["PYTHONNOUSERSITE"] = "1"
-    env["GRPC_PYTHON_BUILD_WITH_CYTHON"] = "1"
-    for dep_name in ("stability-sdk==0.3.0", "sentry-sdk", "Pillow"):
-        res = subprocess.run(
-            [sys.executable, "-m", "pip", "install", dep_name], env=env
-        )
-        print(res.stdout)
-
-
-def check_dependencies_installed(using_grpc: bool = False) -> bool:
-    try:
-        if using_grpc:
-            import stability_sdk
-        import sentry_sdk
-        import PIL
-
-        return True
-    except ImportError:
-        return False
-
-
 class TrackingEvent(Enum):
     TEXT2IMG = 1
     IMG2IMG = 2
@@ -324,7 +288,7 @@ def initialize_sentry():
             "blender_version": bpy.app.version_string,
             "operating_system_version": platform.version(),
             "operating_system_name": platform.system(),
-            "addon_version": bl_info["version"].__str__(),
+            "addon_version": (0, 0, 1),
         },
     )
 
