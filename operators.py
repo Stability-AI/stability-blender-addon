@@ -31,6 +31,7 @@ from .data import (
     copy_image,
     format_rest_args,
     get_init_image_dimensions,
+    get_preferences,
     initialize_sentry,
     log_sentry_event,
 )
@@ -187,8 +188,9 @@ class GeneratorWorker(Thread):
             end_frame = len(rendered_frame_image_paths)
             DreamStateOperator.total_frame_count = end_frame
             for i, frame_img_file in enumerate(rendered_frame_image_paths[:end_frame]):
+                print("about to render frame", i, self.running)
                 if not self.running:
-                    return
+                    break
                 scene.frame_set(i + 1)
                 DreamStateOperator.render_start_time = time.time()
                 args = format_rest_args(settings, scene.prompt_list)
@@ -458,14 +460,17 @@ class DS_LogIssueOperator(DS_OpenWebViewOperator, Operator):
     url = "https://github.com/Stability-AI/stability-blender-addon/issues/new"
 
 
-class DS_InstallDependenciesOperator(Operator):
-    """Force a reinstall of plugin dependencies"""
+class DS_FinishOnboardingOperator(Operator):
+    """Install dependencies and initialize Sentry if applicable"""
 
-    bl_idname = "dreamstudio.install_dependencies"
+    bl_idname = "dreamstudio.finish_onboarding"
     bl_label = "Install"
 
     def execute(self, context):
-        install_dependencies()
-        initialize_sentry()
+        prefs = get_preferences()
+        if prefs.record_analytics:
+            install_dependencies()
+            initialize_sentry()
         DreamStateOperator.sentry_initialized = True
+        DreamStateOperator.render_state = RenderState.IDLE
         return {"FINISHED"}

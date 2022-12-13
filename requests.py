@@ -3,18 +3,15 @@ import requests
 import json
 import random
 import time
-from enum import Enum
 import bpy
 from .prompt_list import MULTIPROMPT_ENABLED
-from .data import TRACKING_EVENTS, APIType, TrackingEvent, log_sentry_event
+from .data import APIType, TrackingEvent, get_preferences, log_sentry_event
 
 
 def render_img2img(input_file_location, output_file_location, args):
-    preferences = bpy.context.preferences.addons[__package__].preferences
+    preferences = get_preferences()
     api_type = APIType[preferences.api_type]
     log_sentry_event(TrackingEvent.IMG2IMG)
-    # HACK
-    return render_img2img_rest(input_file_location, output_file_location, args)
     if api_type == APIType.REST:
         return render_img2img_rest(input_file_location, output_file_location, args)
     if api_type == APIType.GRPC:
@@ -174,7 +171,9 @@ def log_analytics_event(
     payload: dict = {},
     debug: bool = False,
 ):
-
+    prefs = get_preferences()
+    if prefs and not prefs.record_analytics:
+        return
     MEASUREMENT_ID = "G-VSQBN4R3ZS"
     API_SECRET = "YR_AFHGuSS-VtCQXIhb2Fg"
     url = f"https://www.google-analytics.com/mp/collect?measurement_id={MEASUREMENT_ID}&api_secret={API_SECRET}"

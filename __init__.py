@@ -11,7 +11,7 @@ from bpy.types import AddonPreferences
 from .operators import (
     DS_GetAPIKeyOperator,
     DS_LogIssueOperator,
-    DS_InstallDependenciesOperator,
+    DS_FinishOnboardingOperator,
     DS_OpenDocumentationOperator,
     DS_SceneRenderAnimationOperator,
     DS_SceneRenderFrameOperator,
@@ -175,6 +175,8 @@ class DreamStudioPreferences(AddonPreferences):
 
     api_key: StringProperty(name="API Key", default="")
 
+    record_analytics: BoolProperty(name="Record analytics", default=False)
+
     base_url: StringProperty(
         name="API Base URL", default="https://api.stability.ai/v1alpha"
     )
@@ -229,12 +231,13 @@ class DreamStudioPreferences(AddonPreferences):
 
     def draw(self, context):
         layout = self.layout
-        layout.prop(self, "api_type")
+        # Disabled until GRPC is supported.
+        # layout.prop(self, "api_type")
         layout.prop(self, "api_key")
         layout.prop(self, "base_url")
         layout.prop(self, "updater_access_token")
         layout.operator(
-            DS_InstallDependenciesOperator.bl_idname,
+            DS_FinishOnboardingOperator.bl_idname,
             text="Reinstall Dependencies",
             icon="CONSOLE",
         )
@@ -261,7 +264,7 @@ registered_operators = [
     DreamStudio3DPanel,
     AdvancedOptionsPanelSection,
     RenderOptionsPanelSection,
-    DS_InstallDependenciesOperator,
+    DS_FinishOnboardingOperator,
     DS_GetAPIKeyOperator,
 ]
 

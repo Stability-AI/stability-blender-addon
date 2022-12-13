@@ -11,7 +11,6 @@ import platform
 RENDER_PREFIX = "render_"
 from .dependencies import check_dependencies_installed, install_dependencies
 
-
 # Take current state of the scene and use it to format arguments for the REST API.
 def format_rest_args(settings, prompt_list_items):
     prompt_list = [{"text": p.prompt, "weight": p.strength} for p in prompt_list_items]
@@ -294,6 +293,9 @@ def initialize_sentry():
 
 
 def log_sentry_event(event: TrackingEvent):
+    prefs = get_preferences()
+    if prefs and not prefs.record_analytics:
+        return
     if not check_dependencies_installed():
         return
     from sentry_sdk import capture_message, add_breadcrumb

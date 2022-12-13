@@ -17,7 +17,7 @@ from .operators import (
     DS_CancelRenderOperator,
     DS_GetAPIKeyOperator,
     DS_LogIssueOperator,
-    DS_InstallDependenciesOperator,
+    DS_FinishOnboardingOperator,
     DS_OpenDocumentationOperator,
     DS_SceneRenderAnimationOperator,
     DS_SceneRenderFrameOperator,
@@ -56,17 +56,29 @@ def render_in_progress_view(layout):
 
 def render_onboard_view(layout):
     prefs = get_preferences()
-    layout.label(text="Please enter your API key.")
+    get_key_row = layout.row()
+    get_key_row.label(text="Please enter your API key.")
+    get_key_row.operator(
+        DS_GetAPIKeyOperator.bl_idname, text="Open DreamStudio", icon="URL"
+    )
     api_key_row = layout.row()
     api_key_row.use_property_split = False
     api_key_row.use_property_decorate = False
     api_key_row.prop(prefs, "api_key")
-    layout.label(text="You can find it by pressing the button below:")
-    layout.operator(DS_GetAPIKeyOperator.bl_idname, text="Get API Key", icon="URL")
-    layout.label(text="Then, install SDK dependencies.")
-    layout.operator(
-        DS_InstallDependenciesOperator.bl_idname, text="Install", icon="CONSOLE"
+
+    record_toggle_row = layout.row()
+    record_toggle_row.alignment = "EXPAND"
+    record_toggle_row.prop(prefs, "record_analytics")
+    record_toggle_row.use_property_split = False
+    record_toggle_row.use_property_decorate = False
+
+    get_started_row = layout.row()
+    get_started_row.operator(
+        DS_FinishOnboardingOperator.bl_idname,
+        text="Get Started",
+        icon="CONSOLE",
     )
+    get_started_row.enabled = prefs.api_key != ""
 
 
 def render_links_row(layout):
@@ -102,12 +114,6 @@ class DreamStudioImageEditorPanel(Panel):
 
         addon_updater_ops.update_notice_box_ui(self, context)
 
-        if preferences and (not preferences.api_key or preferences.api_key == ""):
-            DreamStateOperator.render_state = RenderState.ONBOARDING
-
-        if not check_dependencies_installed():
-            DreamStateOperator.render_state = RenderState.ONBOARDING
-
         if DreamStateOperator.render_state == RenderState.ONBOARDING:
             render_onboard_view(layout)
             return
@@ -134,6 +140,7 @@ class DreamStudio3DPanel(Panel):
         settings = context.scene.ds_settings
         scene = context.scene
         preferences = get_preferences()
+        re_render: bool = settings.re_render
 
         layout = self.layout
         layout.use_property_split = True
@@ -141,14 +148,8 @@ class DreamStudio3DPanel(Panel):
 
         addon_updater_ops.update_notice_box_ui(self, context)
 
-        if (
-            preferences
-            and (not preferences.api_key or preferences.api_key == "")
-            or not check_dependencies_installed()
-        ):
+        if preferences and (not preferences.api_key or preferences.api_key == ""):
             DreamStateOperator.render_state = RenderState.ONBOARDING
-        elif DreamStateOperator.render_state == RenderState.ONBOARDING:
-            DreamStateOperator.render_state = RenderState.IDLE
 
         if DreamStateOperator.render_state == RenderState.ONBOARDING:
             render_onboard_view(layout)
@@ -165,7 +166,13 @@ class DreamStudio3DPanel(Panel):
         if not valid:
             layout.label(text=validation_msg, icon="ERROR")
         else:
-            layout.label(text="Ready to dream!", icon="CHECKMARK")
+            if re_render:
+                layout.label(
+                    text="Ready to dream! Scene will render before starting.",
+                    icon="CHECKMARK",
+                )
+            else:
+                layout.label(text="Ready to dream!", icon="CHECKMARK")
 
         row = layout.row()
         row.scale_y = 2.0
