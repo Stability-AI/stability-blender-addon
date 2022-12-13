@@ -1,12 +1,14 @@
 from . import addon_updater_ops
 import bpy
 from bpy.types import Panel
+import time
 
 from .prompt_list import MULTIPROMPT_ENABLED, render_prompt_list
 
 from .data import (
     InitSource,
     RenderState,
+    UIContext,
     check_dependencies_installed,
     get_init_image_dimensions,
     get_preferences,
@@ -32,8 +34,16 @@ def render_in_progress_view(layout):
     state_text = (
         "Rendering..."
         if DreamStateOperator.render_state == RenderState.RENDERING
-        else "Diffusing... Frame: {}".format(DreamStateOperator.current_frame_idx)
+        else "Diffusing...".format(DreamStateOperator.current_frame_idx)
     )
+    if DreamStateOperator.ui_context == UIContext.SCENE_VIEW_ANIMATION:
+        state_text += " Frame {}/{}".format(
+            DreamStateOperator.current_frame_idx, DreamStateOperator.total_frame_count
+        )
+    if DreamStateOperator.render_start_time:
+        state_text += " ({}s)".format(
+            round(time.time() - DreamStateOperator.render_start_time, 2)
+        )
     layout.label(text=state_text)
     cancel_text = (
         "Cancel Render"

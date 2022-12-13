@@ -168,8 +168,6 @@ class DreamStudioSettings(bpy.types.PropertyGroup):
         description="The location to save the output image. The default is to open the result as a new image in the image editor. The other options are to output the images to the file system, and open the explorer to the image when diffusion is complete, or replace the existing image in the image editor.",
     )
 
-    frame_timer: FloatProperty(default=0, update=ui_update)
-
 
 @addon_updater_ops.make_annotations
 class DreamStudioPreferences(AddonPreferences):

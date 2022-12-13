@@ -56,7 +56,7 @@ class DS_ContinueRenderOperator(Operator):
 
 
 class DS_CancelRenderOperator(Operator):
-    """Cancel Baking"""
+    """Cancel diffusion process"""
 
     bl_idname = "dreamstudio.cancel_render"
     bl_label = "Cancel"
@@ -183,14 +183,13 @@ class GeneratorWorker(Thread):
                 raise Exception(
                     "No rendered frames found. Please render the scene first."
                 )
-            end_frame = min(
-                len(rendered_frame_image_paths),
-                len(rendered_frame_image_paths),
-            )
+            end_frame = len(rendered_frame_image_paths)
+            DreamStateOperator.total_frame_count = end_frame
             for i, frame_img_file in enumerate(rendered_frame_image_paths[:end_frame]):
                 if not self.running:
                     return
                 scene.frame_set(i + 1)
+                DreamStateOperator.render_start_time = time.time()
                 args = format_rest_args(settings, scene.prompt_list)
                 output_file_path = os.path.join(
                     DreamStateOperator.results_dir, f"result_{i}.png"
@@ -223,9 +222,6 @@ class DreamRenderOperator(Operator):
         settings = context.scene.ds_settings
         output_location = OutputLocation[settings.output_location]
         ui_context = DreamStateOperator.ui_context
-
-        print("modal", DreamStateOperator.render_state.name)
-
         if DreamStateOperator.render_start_time is not None:
             settings.render_time = time.time() - DreamStateOperator.render_start_time
 
@@ -381,6 +377,7 @@ class DreamStateOperator(Operator):
     render_state = RenderState.IDLE
     pause_reason = PauseReason.NONE
     current_frame_idx = 0
+    total_frame_count = 0
     generator_thread: Thread = None
     diffusion_output_path = None
     init_img_path = None
@@ -456,7 +453,7 @@ class DS_LogIssueOperator(DS_OpenWebViewOperator, Operator):
     """Open a link to the support page in your web browser"""
 
     bl_idname = "dreamstudio.log_issue"
-    url = "https://github.com/Stability-AI/stability-blender-addon/issues"
+    url = "https://github.com/Stability-AI/stability-blender-addon/issues/new"
 
 
 class DS_InstallDependenciesOperator(Operator):
