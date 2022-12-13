@@ -1,6 +1,6 @@
 # Blender DreamStudio animation
 
-Go here for installation instructions: [Installing](/Installing.md)
+[Go here for step-by-step installation instructions!](/Installing.md)
 
 This is a plugin for Blender that lets you use the Stability.ai REST API for a variety of tasks, including:
 
