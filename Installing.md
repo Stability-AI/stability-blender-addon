@@ -5,16 +5,19 @@
 
 ![](/content/install_release.png)
 
-2. In Blender, go to `Edit > Preferences > Add-ons`
+2. In Blender, Click `Edit` in the top menu bar
 
-![](/content/header_bar.png)
+![](/content/select_edit.png)
+
+3. Then, select preferences in the dropdown menu.
+
 ![](/content/select_preferences.png)
 
-3. Then, select `Install..` in the top bar of the window.
+3. Navigate to the `Add-ons` tab and select `Install..` in the top bar of the window.
 
 ![](/content/select_addon_prefs.png)
 
-4. select the zip file you just downloaded. Click 'Install Add-on' in the popup window. **Select the ZIP file itself - do not unzip it!**
+4. select the zip file you just downloaded. Click 'Install Add-on' in the bottom right of the window. **Select the ZIP file itself - do not unzip it!**
 
 ![](/content/install_addon.png)
 
