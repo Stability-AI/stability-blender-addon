@@ -222,8 +222,9 @@ class DreamRenderOperator(Operator):
         settings = context.scene.ds_settings
         output_location = OutputLocation[settings.output_location]
         ui_context = DreamStateOperator.ui_context
-        if DreamStateOperator.render_start_time is not None:
-            settings.render_time = time.time() - DreamStateOperator.render_start_time
+
+        if DreamStateOperator.render_start_time:
+            settings.current_time = time.time() - DreamStateOperator.render_start_time
 
         if DreamStateOperator.render_state == RenderState.CANCELLED:
             DreamStateOperator.render_state = RenderState.IDLE
