@@ -289,7 +289,7 @@ def initialize_sentry():
             "blender_version": bpy.app.version_string,
             "operating_system_version": platform.version(),
             "operating_system_name": platform.system(),
-            "addon_version": "(0, 0, 1)",
+            "addon_version": "(0, 0, 3)",
         },
     )
 
