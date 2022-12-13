@@ -15,20 +15,22 @@ from .dependencies import check_dependencies_installed, install_dependencies
 def format_rest_args(settings, prompt_list_items):
     prompt_list = [{"text": p.prompt, "weight": p.strength} for p in prompt_list_items]
     preferences = get_preferences()
-    use_clip, sampler, steps = (
+    use_clip, sampler_value, steps = (
         settings.use_clip_guidance,
         settings.sampler,
         settings.steps,
     )
+    selected_sampler = Sampler[sampler_value]
+    clip_preset = ClipGuidancePreset.FAST_BLUE if use_clip else ClipGuidancePreset.NONE
     if settings.use_recommended_settings:
         width, height = get_init_image_dimensions(settings, bpy.context.scene)
         recommended = get_optimal_engine_config(width, height)
-        clip_preset, sampler, steps = (
+        clip_preset, selected_sampler, steps = (
             recommended.guidance_preset,
             recommended.sampler_clip if use_clip else recommended.sampler_no_clip,
             recommended.steps,
         )
-    sampler_name = sampler.name.strip().upper()
+    sampler_name = selected_sampler.name.strip().upper()
     clip_preset_name = clip_preset.name.strip().upper()
     return {
         "api_key": preferences.api_key,
@@ -202,7 +204,7 @@ class EngineConfig:
 
 
 class DefaultEngineConfig(EngineConfig):
-    engine = Engine.GENERATE_1_5
+    engine = Engine.GENERATE_512_2_1
     sampler_clip = Sampler.K_DPM_2_ANCESTRAL
     sampler_no_clip = Sampler.K_DPMPP_2M
     guidance_preset = ClipGuidancePreset.FAST_GREEN
