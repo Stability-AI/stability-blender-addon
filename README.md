@@ -1,5 +1,7 @@
 # Blender DreamStudio animation
 
+Go here for installation instructions: [Installing](/Installing.md)
+
 This is a plugin for Blender that lets you use the Stability.ai REST API for a variety of tasks, including:
 
 * Send rendered animations and still frames to Stable Diffusion as init images, leading to some wild effects
