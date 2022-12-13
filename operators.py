@@ -470,7 +470,7 @@ class DS_LogIssueOperator(DS_OpenWebViewOperator, Operator):
 
 
 class DS_FinishOnboardingOperator(Operator):
-    """Get started with Dream Studio"""
+    """Get started with Dream Studio!"""
 
     bl_idname = "dreamstudio.finish_onboarding"
     bl_label = "Install"
