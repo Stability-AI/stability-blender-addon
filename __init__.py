@@ -119,7 +119,7 @@ class DreamStudioSettings(bpy.types.PropertyGroup):
     # uint32 max value
     seed: IntProperty(
         name="Seed",
-        default=0,
+        default=14124231,
         min=0,
         max=2147483647,
         description="The seed fixes which random numbers are used for the diffusion process. This allows you to reproduce the same results for the same input frame. May also help with consistency across frames if you are rendering an animation",
@@ -175,7 +175,11 @@ class DreamStudioPreferences(AddonPreferences):
 
     api_key: StringProperty(name="API Key", default="")
 
-    record_analytics: BoolProperty(name="Record analytics", default=False)
+    record_analytics: BoolProperty(
+        name="Record anonymous telemetry data",
+        description="Allow Stability to capture anonymous analytics data. This will only be used for further product development. No personal data will be collected",
+        default=False,
+    )
 
     base_url: StringProperty(
         name="API Base URL", default="https://api.stability.ai/v1alpha"

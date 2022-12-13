@@ -189,7 +189,10 @@ class GeneratorWorker(Thread):
             DreamStateOperator.total_frame_count = end_frame
             for i, frame_img_file in enumerate(rendered_frame_image_paths[:end_frame]):
                 print("about to render frame", i, self.running)
-                if not self.running:
+                if (
+                    not self.running
+                    or DreamStateOperator.render_state == RenderState.CANCELLED
+                ):
                     break
                 scene.frame_set(i + 1)
                 DreamStateOperator.render_start_time = time.time()
@@ -200,8 +203,10 @@ class GeneratorWorker(Thread):
                 rendered_image = bpy.data.images.load(frame_img_file)
                 rendered_image.scale(init_image_width, init_image_height)
                 DreamStateOperator.current_frame_idx = i + 1
-                if DreamStateOperator.render_state == RenderState.CANCELLED:
-                    break
+                print(
+                    "about to render frame - render state:",
+                    DreamStateOperator.render_state,
+                )
                 # We need to actually set Blender to a certain frame to evaluate all the keyframe values for that frame.
                 status, reason = render_img2img(frame_img_file, output_file_path, args)
                 print("rendered frame", i, status, reason, output_file_path)
@@ -238,9 +243,13 @@ class DreamRenderOperator(Operator):
             for area in bpy.context.screen.areas:
                 if area.type == "IMAGE_EDITOR":
                     image_tex_area = area
-            if output_location in (
-                OutputLocation.NEW_TEXTURE,
-                OutputLocation.CURRENT_TEXTURE,
+            if (
+                output_location
+                in (
+                    OutputLocation.NEW_TEXTURE,
+                    OutputLocation.CURRENT_TEXTURE,
+                )
+                and ui_context != UIContext.SCENE_VIEW_ANIMATION
             ):
                 rendered_image = bpy.data.images.load(
                     DreamStateOperator.diffusion_output_path
@@ -257,7 +266,7 @@ class DreamRenderOperator(Operator):
                     image_tex_area.spaces.active.image = copy_image(rendered_image)
             elif (
                 output_location == OutputLocation.FILE_SYSTEM
-                and ui_context != UIContext.SCENE_VIEW_ANIMATION
+                or ui_context == UIContext.SCENE_VIEW_ANIMATION
             ):
                 if os.name == "nt":
                     os.startfile(DreamStateOperator.results_dir)
@@ -461,7 +470,7 @@ class DS_LogIssueOperator(DS_OpenWebViewOperator, Operator):
 
 
 class DS_FinishOnboardingOperator(Operator):
-    """Install dependencies and initialize Sentry if applicable"""
+    """Get started with Dream Studio"""
 
     bl_idname = "dreamstudio.finish_onboarding"
     bl_label = "Install"
@@ -469,7 +478,8 @@ class DS_FinishOnboardingOperator(Operator):
     def execute(self, context):
         prefs = get_preferences()
         if prefs.record_analytics:
-            install_dependencies()
+            if not check_dependencies_installed():
+                install_dependencies()
             initialize_sentry()
         DreamStateOperator.sentry_initialized = True
         DreamStateOperator.render_state = RenderState.IDLE

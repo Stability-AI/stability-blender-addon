@@ -59,7 +59,7 @@ def render_onboard_view(layout):
     get_key_row = layout.row()
     get_key_row.label(text="Please enter your API key.")
     get_key_row.operator(
-        DS_GetAPIKeyOperator.bl_idname, text="Open DreamStudio", icon="URL"
+        DS_GetAPIKeyOperator.bl_idname, text="Account Page", icon="URL"
     )
     api_key_row = layout.row()
     api_key_row.use_property_split = False
@@ -67,16 +67,12 @@ def render_onboard_view(layout):
     api_key_row.prop(prefs, "api_key")
 
     record_toggle_row = layout.row()
-    record_toggle_row.alignment = "EXPAND"
-    record_toggle_row.prop(prefs, "record_analytics")
     record_toggle_row.use_property_split = False
-    record_toggle_row.use_property_decorate = False
+    record_toggle_row.prop(prefs, "record_analytics")
 
     get_started_row = layout.row()
     get_started_row.operator(
-        DS_FinishOnboardingOperator.bl_idname,
-        text="Get Started",
-        icon="CONSOLE",
+        DS_FinishOnboardingOperator.bl_idname, text="Get Started", icon="CHECKBOX_HLT"
     )
     get_started_row.enabled = prefs.api_key != ""
 
@@ -168,11 +164,11 @@ class DreamStudio3DPanel(Panel):
         else:
             if re_render:
                 layout.label(
-                    text="Ready to dream! Scene will render before starting.",
+                    text="Ready! Scene will render first, this will lock Blender.",
                     icon="CHECKMARK",
                 )
             else:
-                layout.label(text="Ready to dream!", icon="CHECKMARK")
+                layout.label(text="Ready!", icon="CHECKMARK")
 
         row = layout.row()
         row.scale_y = 2.0
