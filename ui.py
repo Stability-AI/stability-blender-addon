@@ -42,7 +42,7 @@ def render_in_progress_view(layout):
         )
     if DreamStateOperator.render_start_time:
         state_text += " ({}s)".format(
-            round(time.time() - DreamStateOperator.render_start_time, 2)
+            round(time.time() - DreamStateOperator.render_start_time, 1)
         )
     layout.label(text=state_text)
     cancel_text = (

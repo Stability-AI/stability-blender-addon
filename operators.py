@@ -79,6 +79,7 @@ class DS_SceneRenderFrameOperator(Operator):
     def execute(self, context):
         DreamStateOperator.ui_context = UIContext.SCENE_VIEW_FRAME
         DreamStateOperator.render_state = RenderState.RENDERING
+        DreamStateOperator.render_start_time = time.time()
         bpy.ops.dreamstudio.dream_render_operator()
         return {"FINISHED"}
 
@@ -92,6 +93,7 @@ class DS_SceneRenderAnimationOperator(Operator):
     def execute(self, context):
         DreamStateOperator.ui_context = UIContext.SCENE_VIEW_ANIMATION
         DreamStateOperator.render_state = RenderState.RENDERING
+        DreamStateOperator.render_start_time = time.time()
         bpy.ops.dreamstudio.dream_render_operator()
         return {"FINISHED"}
 
@@ -123,7 +125,6 @@ class GeneratorWorker(Thread):
         args = format_rest_args(settings, scene.prompt_list)
 
         DreamStateOperator.render_state = RenderState.DIFFUSING
-        DreamStateOperator.render_start_time = time.time()
         output_file_path = os.path.join(DreamStateOperator.results_dir, f"result.png")
         DreamStateOperator.diffusion_output_path = output_file_path
         init_image_width, init_image_height = get_init_image_dimensions(settings, scene)
