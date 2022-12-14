@@ -80,6 +80,7 @@ class DS_SceneRenderFrameOperator(Operator):
 
     def execute(self, context):
         DreamStateOperator.ui_context = UIContext.SCENE_VIEW
+        DreamStateOperator.render_context = RenderContext.FRAME
         DreamStateOperator.render_state = RenderState.RENDERING
         DreamStateOperator.render_start_time = time.time()
         bpy.ops.dreamstudio.dream_render_operator()
@@ -94,6 +95,7 @@ class DS_SceneRenderAnimationOperator(Operator):
 
     def execute(self, context):
         DreamStateOperator.ui_context = UIContext.SCENE_VIEW
+        DreamStateOperator.render_context = RenderContext.ANIMATION
         DreamStateOperator.render_state = RenderState.RENDERING
         DreamStateOperator.render_start_time = time.time()
         bpy.ops.dreamstudio.dream_render_operator()
@@ -312,6 +314,7 @@ class DreamRenderOperator(Operator):
         )
         if context.area.type == "IMAGE_EDITOR":
             ui_context = UIContext.IMAGE_EDITOR
+            render_context = RenderContext.TEXTURE
 
         output_dir, results_dir = setup_render_directories(clear=re_render)
         render_anim = render_context == RenderContext.ANIMATION
@@ -371,7 +374,7 @@ class DreamRenderOperator(Operator):
 
         DreamStateOperator.ui_context = ui_context
         DreamStateOperator.generator_thread = GeneratorWorker(
-            scene, context, ui_context, render_context
+            scene, context, render_context, ui_context
         )
         DreamStateOperator.generator_thread.start()
 
