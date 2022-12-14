@@ -124,7 +124,7 @@ INIT_SOURCES = [
     #     "",
     #     InitSource.CURRENT_TEXTURE.value,
     # ),
-    (InitSource.SCENE_RENDER.name, "Scene Render", "", InitSource.SCENE_RENDER.value),
+    (InitSource.SCENE_RENDER.name, "Scene Render (Img2Img)", "", InitSource.SCENE_RENDER.value),
 ]
 
 # where to send the resulting texture

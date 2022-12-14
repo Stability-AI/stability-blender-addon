@@ -22,10 +22,12 @@ from .operators import (
 )
 
 from .ui import (
-    AdvancedOptionsPanelSection,
+    AdvancedOptionsPanelSection3DEditor,
     DreamStudio3DPanel,
     DreamStudioImageEditorPanel,
-    RenderOptionsPanelSection,
+    RenderOptionsPanelSection3DEditor,
+    RenderOptionsPanelSectionImageEditor,
+    AdvancedOptionsPanelSectionImageEditor,
 )
 from . import addon_updater_ops
 from .dependencies import check_dependencies_installed
@@ -228,11 +230,6 @@ class DreamStudioPreferences(AddonPreferences):
         max=59,
     )
 
-    updater_access_token = bpy.props.StringProperty(
-        name="Updater Access Token",
-        description="Access token for the updater to use for access to private builds of the addon.",
-    )
-
     def draw(self, context):
         layout = self.layout
         # Disabled until GRPC is supported.
@@ -266,8 +263,10 @@ registered_operators = [
     DS_SceneRenderFrameOperator,
     DreamStateOperator,
     DreamStudio3DPanel,
-    AdvancedOptionsPanelSection,
-    RenderOptionsPanelSection,
+    AdvancedOptionsPanelSection3DEditor,
+    AdvancedOptionsPanelSectionImageEditor,
+    RenderOptionsPanelSection3DEditor,
+    RenderOptionsPanelSectionImageEditor,
     DS_FinishOnboardingOperator,
     DS_GetAPIKeyOperator,
 ]

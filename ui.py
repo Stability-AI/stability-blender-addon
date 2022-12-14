@@ -30,6 +30,18 @@ DS_CATEGORY = "DreamStudio"
 DS_REGION_TYPE = "UI"
 
 
+class PanelSection3D:
+    bl_space_type = "VIEW_3D"
+    bl_region_type = DS_REGION_TYPE
+    bl_category = DS_CATEGORY
+
+
+class PanelSectionImageEditor:
+    bl_space_type = "IMAGE_EDITOR"
+    bl_region_type = DS_REGION_TYPE
+    bl_category = DS_CATEGORY
+
+
 def render_in_progress_view(layout):
     state_text = (
         "Rendering..."
@@ -94,7 +106,7 @@ def render_output_location_row(layout, settings):
 
 
 # UI for the image editor panel.
-class DreamStudioImageEditorPanel(Panel):
+class DreamStudioImageEditorPanel(PanelSectionImageEditor, Panel):
     bl_idname = "panel.dreamstudio_image_editor"
     bl_label = "DreamStudio"
     # https://docs.blender.org/api/current/bpy_types_enum_items/space_type_items.html#rna-enum-space-type-items
@@ -137,6 +149,7 @@ class DreamStudio3DPanel(Panel):
         scene = context.scene
         preferences = get_preferences()
         re_render: bool = settings.re_render
+        init_source = InitSource[settings.init_source]
 
         layout = self.layout
         layout.use_property_split = True
@@ -162,7 +175,7 @@ class DreamStudio3DPanel(Panel):
         if not valid:
             layout.label(text=validation_msg, icon="ERROR")
         else:
-            if re_render:
+            if re_render and init_source == InitSource.SCENE_RENDER:
                 layout.label(
                     text="Ready! Scene will render first, this will lock Blender.",
                     icon="CHECKMARK",
@@ -188,7 +201,7 @@ def validate_settings(settings, scene) -> tuple[bool, str]:
     init_source = InitSource[settings.init_source]
     if init_source != InitSource.NONE:
         if width * height > 1_000_000:
-            return False, "Image size cannot be greater than 1 megapixel."
+            return False, "Init image size cannot be greater than 1 megapixel."
 
         if not prompts or len(prompts) < 1:
             return False, "Add at least one prompt to the prompt list."
@@ -204,78 +217,103 @@ def validate_settings(settings, scene) -> tuple[bool, str]:
 
 
 # Individual panel sections are added by setting bl_parent_id
-class PanelSection:
-    bl_space_type = "VIEW_3D"
-    bl_region_type = "UI"
-    bl_category = DS_CATEGORY
+
+# Blender requires that we register a different panel type for each UI section - so we need to register a panel type for each UI for both the 3D view and the image editor.
 
 
-class RenderOptionsPanelSection(PanelSection, Panel):
+class RenderOptionsPanelSectionImageEditor(PanelSectionImageEditor, Panel):
 
-    bl_parent_id = DreamStudio3DPanel.bl_idname
-    bl_label = "Blender Options"
+    bl_parent_id = DreamStudioImageEditorPanel.bl_idname
+    bl_label = "Texture Options"
 
     def draw(self, context):
-        layout = self.layout
-        settings = context.scene.ds_settings
-        use_custom_res = not settings.use_render_resolution
-        init_source = InitSource[settings.init_source]
-        if DreamStateOperator.render_state == RenderState.ONBOARDING:
-            return
-        layout.prop(settings, "init_source")
-        if init_source != InitSource.NONE:
-            layout.prop(settings, "init_strength")
-
-        layout.prop(settings, "re_render")
-        layout.prop(settings, "use_render_resolution")
-        image_size_row = layout.row()
-        image_size_row.enabled = use_custom_res
-        image_size_row.prop(settings, "init_image_height", text="Height")
-        image_size_row.prop(settings, "init_image_width", text="Width")
-
-        render_output_location_row(layout, settings)
+        draw_render_options_panel(self, context)
 
 
-class AdvancedOptionsPanelSection(PanelSection, Panel):
+class RenderOptionsPanelSection3DEditor(PanelSection3D, Panel):
+
+    bl_parent_id = DreamStudio3DPanel.bl_idname
+    bl_label = "3D View Options"
+
+    def draw(self, context):
+        draw_render_options_panel(self, context)
+
+
+class AdvancedOptionsPanelSection3DEditor(PanelSection3D, Panel):
 
     bl_parent_id = DreamStudio3DPanel.bl_idname
     bl_label = "DreamStudio Options"
     bl_options = {"DEFAULT_CLOSED"}
 
     def draw(self, context):
-        layout = self.layout
-        settings = context.scene.ds_settings
-        use_recommended = settings.use_recommended_settings
+        draw_advanced_options_panel(self, context)
 
-        if DreamStateOperator.render_state == RenderState.ONBOARDING:
-            return
 
-        layout.prop(settings, "cfg_scale", text="Prompt Strength")
+class AdvancedOptionsPanelSectionImageEditor(PanelSectionImageEditor, Panel):
 
-        seed_row = layout.row()
-        seed_row.prop(settings, "use_custom_seed")
-        seed_input_row = seed_row.row()
-        seed_input_row.enabled = settings.use_custom_seed
-        seed_input_row.prop(settings, "seed")
+    bl_parent_id = DreamStudioImageEditorPanel.bl_idname
+    bl_label = "DreamStudio Options"
+    bl_options = {"DEFAULT_CLOSED"}
 
-        layout.prop(
-            settings,
-            "use_recommended_settings",
-        )
+    def draw(self, context):
+        draw_advanced_options_panel(self, context)
 
-        steps_row = layout.row()
-        steps_row.prop(settings, "steps", text="Steps")
-        steps_row.enabled = not use_recommended
 
-        # Disallow interpolating these params
-        engine_selection_row = layout.row()
-        engine_selection_row.use_property_split = False
-        engine_selection_row.use_property_decorate = False
-        engine_selection_row.prop(settings, "generation_engine")
-        engine_selection_row.enabled = not use_recommended
-        engine_selection_row.scale_x = 0.5
-        engine_selection_row.prop(settings, "use_clip_guidance")
+def draw_advanced_options_panel(self, context):
+    layout = self.layout
+    settings = context.scene.ds_settings
+    use_recommended = settings.use_recommended_settings
 
-        sampler_row = layout.row()
-        sampler_row.prop(settings, "sampler")
-        sampler_row.enabled = not use_recommended
+    if DreamStateOperator.render_state == RenderState.ONBOARDING:
+        return
+
+    layout.prop(settings, "cfg_scale", text="Prompt Strength")
+
+    seed_row = layout.row()
+    seed_row.prop(settings, "use_custom_seed")
+    seed_input_row = seed_row.row()
+    seed_input_row.enabled = settings.use_custom_seed
+    seed_input_row.prop(settings, "seed")
+
+    layout.prop(
+        settings,
+        "use_recommended_settings",
+    )
+
+    steps_row = layout.row()
+    steps_row.prop(settings, "steps", text="Steps")
+    steps_row.enabled = not use_recommended
+
+    # Disallow interpolating these params
+    engine_selection_row = layout.row()
+    engine_selection_row.use_property_split = False
+    engine_selection_row.use_property_decorate = False
+    engine_selection_row.prop(settings, "generation_engine")
+    engine_selection_row.enabled = not use_recommended
+    engine_selection_row.scale_x = 0.5
+    engine_selection_row.prop(settings, "use_clip_guidance")
+
+    sampler_row = layout.row()
+    sampler_row.prop(settings, "sampler")
+    sampler_row.enabled = not use_recommended
+
+
+def draw_render_options_panel(self, context):
+    layout = self.layout
+    settings = context.scene.ds_settings
+    use_custom_res = not settings.use_render_resolution
+    init_source = InitSource[settings.init_source]
+    if DreamStateOperator.render_state == RenderState.ONBOARDING:
+        return
+    layout.prop(settings, "init_source")
+    if init_source != InitSource.NONE:
+        layout.prop(settings, "init_strength")
+
+    layout.prop(settings, "re_render")
+    layout.prop(settings, "use_render_resolution")
+    image_size_row = layout.row()
+    image_size_row.enabled = use_custom_res
+    image_size_row.prop(settings, "init_image_height", text="Height")
+    image_size_row.prop(settings, "init_image_width", text="Width")
+
+    render_output_location_row(layout, settings)
