@@ -174,9 +174,7 @@ class DreamStudio3DPanel(Panel):
             render_in_progress_view(layout)
             return
 
-        valid = render_validation(
-            layout, settings, scene, UIContext.SCENE_VIEW
-        )
+        valid = render_validation(layout, settings, scene, UIContext.SCENE_VIEW)
         render_prompt_list(scene, layout)
 
         row = layout.row()
@@ -242,7 +240,8 @@ def render_validation(layout, settings, scene, ui_context: UIContext):
 
 # Individual panel sections are added by setting bl_parent_id
 
-# Blender requires that we register a different panel type for each UI section - so we need to register a panel type for each UI for both the 3D view and the image editor.
+# Blender requires that we register a different panel type for each UI section -
+# so we need to register a panel type for each UI for both the 3D view and the image editor.
 
 
 class RenderOptionsPanelSectionImageEditor(PanelSectionImageEditor, Panel):
