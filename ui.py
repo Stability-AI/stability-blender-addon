@@ -119,8 +119,12 @@ class DreamStudioImageEditorPanel(PanelSectionImageEditor, Panel):
         layout = self.layout
         settings = context.scene.ds_settings
         scene = context.scene
+        preferences = get_preferences()
 
         addon_updater_ops.update_notice_box_ui(self, context)
+
+        if preferences and (not preferences.api_key or preferences.api_key == ""):
+            DreamStateOperator.render_state = RenderState.ONBOARDING
 
         if DreamStateOperator.render_state == RenderState.ONBOARDING:
             render_onboard_view(layout)
