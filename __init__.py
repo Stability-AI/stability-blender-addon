@@ -62,7 +62,7 @@ bl_info = {
     "author": "Stability AI",
     "description": "",
     "blender": (2, 80, 0),
-    "version": (0, 0, 3),
+    "version": (0, 0, 4),
     "location": "",
     "warning": "",
     "category": "AI",
