@@ -116,15 +116,19 @@ class OutputLocation(Enum):
 
 # Used to display the init source property in the UI
 INIT_SOURCES = [
-    (InitSource.NONE.name, "None (Text2Img)", "", InitSource.NONE.value),
-    # TODO disabled, until we add a texture picker
-    # (
-    #     InitSource.CURRENT_TEXTURE.name,
-    #     "Current Texture",
-    #     "",
-    #     InitSource.CURRENT_TEXTURE.value,
-    # ),
-    (InitSource.SCENE_RENDER.name, "Scene Render (Img2Img)", "", InitSource.SCENE_RENDER.value),
+    (InitSource.NONE.name, "None (Just Text)", "", InitSource.NONE.value),
+    (
+        InitSource.CURRENT_TEXTURE.name,
+        "Current Texture",
+        "",
+        InitSource.CURRENT_TEXTURE.value,
+    ),
+    (
+        InitSource.SCENE_RENDER.name,
+        "Scene Render",
+        "",
+        InitSource.SCENE_RENDER.value,
+    ),
 ]
 
 # where to send the resulting texture
@@ -145,10 +149,13 @@ OUTPUT_LOCATIONS = [
 
 # Which UI element are we operating from?
 class UIContext(Enum):
-    SCENE_VIEW_ANIMATION = 1
-    SCENE_VIEW_FRAME = 2
-    IMAGE_EDITOR = 3
+    SCENE_VIEW = 1
+    IMAGE_EDITOR = 2
 
+class RenderContext(Enum):
+    FRAME = 1
+    TEXTURE = 2
+    ANIMATION = 3
 
 class Sampler(Enum):
     K_EULER = 1

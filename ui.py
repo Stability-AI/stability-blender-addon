@@ -7,6 +7,7 @@ from .prompt_list import MULTIPROMPT_ENABLED, render_prompt_list
 
 from .data import (
     InitSource,
+    RenderContext,
     RenderState,
     UIContext,
     check_dependencies_installed,
@@ -48,7 +49,7 @@ def render_in_progress_view(layout):
         if DreamStateOperator.render_state == RenderState.RENDERING
         else "Diffusing...".format(DreamStateOperator.current_frame_idx)
     )
-    if DreamStateOperator.ui_context == UIContext.SCENE_VIEW_ANIMATION:
+    if DreamStateOperator.render_context == RenderContext.ANIMATION:
         state_text += " Frame {}/{}".format(
             DreamStateOperator.current_frame_idx, DreamStateOperator.total_frame_count
         )
@@ -117,8 +118,7 @@ class DreamStudioImageEditorPanel(PanelSectionImageEditor, Panel):
     def draw(self, context):
         layout = self.layout
         settings = context.scene.ds_settings
-
-        preferences = get_preferences()
+        scene = context.scene
 
         addon_updater_ops.update_notice_box_ui(self, context)
 
@@ -130,9 +130,13 @@ class DreamStudioImageEditorPanel(PanelSectionImageEditor, Panel):
             render_in_progress_view(layout)
             return
 
+        valid = render_validation(layout, settings, scene, UIContext.IMAGE_EDITOR)
+
         render_prompt_list(context.scene, layout)
 
-        layout.operator(DreamRenderOperator.bl_idname, text="Dream (Texture)")
+        dream_row = layout.row()
+        dream_row.operator(DreamRenderOperator.bl_idname, text="Dream (Texture)")
+        dream_row.enabled = valid
         render_links_row(layout)
 
 
@@ -148,8 +152,6 @@ class DreamStudio3DPanel(Panel):
         settings = context.scene.ds_settings
         scene = context.scene
         preferences = get_preferences()
-        re_render: bool = settings.re_render
-        init_source = InitSource[settings.init_source]
 
         layout = self.layout
         layout.use_property_split = True
@@ -168,20 +170,10 @@ class DreamStudio3DPanel(Panel):
             render_in_progress_view(layout)
             return
 
-        valid, validation_msg = validate_settings(settings, scene)
-
+        valid = render_validation(
+            layout, settings, scene, UIContext.SCENE_VIEW
+        )
         render_prompt_list(scene, layout)
-
-        if not valid:
-            layout.label(text=validation_msg, icon="ERROR")
-        else:
-            if re_render and init_source == InitSource.SCENE_RENDER:
-                layout.label(
-                    text="Ready! Scene will render first, this will lock Blender.",
-                    icon="CHECKMARK",
-                )
-            else:
-                layout.label(text="Ready!", icon="CHECKMARK")
 
         row = layout.row()
         row.scale_y = 2.0
@@ -194,26 +186,54 @@ class DreamStudio3DPanel(Panel):
 
 
 # Validation messages should be no longer than 50 chars or so.
-def validate_settings(settings, scene) -> tuple[bool, str]:
+def validate_settings(
+    settings, scene, ui_render_context: UIContext
+) -> tuple[bool, str]:
     width, height = get_init_image_dimensions(settings, scene)
     prompts = scene.prompt_list
     # cannot be > 1 megapixel
     init_source = InitSource[settings.init_source]
     if init_source != InitSource.NONE:
+        if (
+            ui_render_context == UIContext.IMAGE_EDITOR
+            and init_source == InitSource.SCENE_RENDER
+        ):
+            return False, "Rendering to image editor is not supported."
+        if (
+            ui_render_context == UIContext.SCENE_VIEW
+            and init_source == InitSource.CURRENT_TEXTURE
+        ):
+            return False, "Rendering from image editor is not supported."
         if width * height > 1_000_000:
             return False, "Init image size cannot be greater than 1 megapixel."
 
         if not prompts or len(prompts) < 1:
             return False, "Add at least one prompt to the prompt list."
 
-    if not MULTIPROMPT_ENABLED:
-        if not prompts[0] or prompts[0].prompt == "":
-            return False, "Enter a prompt."
+    if not prompts[0] or prompts[0].prompt == "":
+        return False, "Enter a prompt."
 
-        if prompts[0] and prompts[0].prompt and len(prompts[0].prompt) > 500:
-            return False, "Enter a prompt."
+    if prompts[0] and prompts[0].prompt and len(prompts[0].prompt) > 500:
+        return False, "Enter a prompt."
 
     return True, ""
+
+
+def render_validation(layout, settings, scene, ui_context: UIContext):
+    re_render: bool = settings.re_render
+    init_source = InitSource[settings.init_source]
+    valid, validation_msg = validate_settings(settings, scene, ui_context)
+    if not valid:
+        layout.label(text=validation_msg, icon="ERROR")
+    else:
+        if re_render and init_source == InitSource.SCENE_RENDER:
+            layout.label(
+                text="Ready! Scene will render first, this will lock Blender.",
+                icon="CHECKMARK",
+            )
+        else:
+            layout.label(text="Ready!", icon="CHECKMARK")
+    return valid
 
 
 # Individual panel sections are added by setting bl_parent_id

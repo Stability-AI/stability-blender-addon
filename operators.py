@@ -22,6 +22,7 @@ import webbrowser
 
 from .data import (
     RENDER_PREFIX,
+    RenderContext,
     TrackingEvent,
     UIContext,
     InitSource,
@@ -78,7 +79,7 @@ class DS_SceneRenderFrameOperator(Operator):
     bl_label = "Cancel"
 
     def execute(self, context):
-        DreamStateOperator.ui_context = UIContext.SCENE_VIEW_FRAME
+        DreamStateOperator.ui_context = UIContext.SCENE_VIEW
         DreamStateOperator.render_state = RenderState.RENDERING
         DreamStateOperator.render_start_time = time.time()
         bpy.ops.dreamstudio.dream_render_operator()
@@ -92,7 +93,7 @@ class DS_SceneRenderAnimationOperator(Operator):
     bl_label = "Cancel"
 
     def execute(self, context):
-        DreamStateOperator.ui_context = UIContext.SCENE_VIEW_ANIMATION
+        DreamStateOperator.ui_context = UIContext.SCENE_VIEW
         DreamStateOperator.render_state = RenderState.RENDERING
         DreamStateOperator.render_start_time = time.time()
         bpy.ops.dreamstudio.dream_render_operator()
@@ -100,10 +101,13 @@ class DS_SceneRenderAnimationOperator(Operator):
 
 
 class GeneratorWorker(Thread):
-    def __init__(self, scene, context, gen_type=UIContext.SCENE_VIEW_ANIMATION):
+    def __init__(
+        self, scene, context, render_context: RenderContext, ui_context: UIContext
+    ):
         self.scene = scene
         self.context = context
-        self.ui_context: UIContext = gen_type
+        self.render_context: RenderContext = render_context
+        self.ui_context: UIContext = ui_context
         self.running: bool = True
         self.init_source: InitSource = InitSource[scene.ds_settings.init_source]
         Thread.__init__(self)
@@ -139,7 +143,7 @@ class GeneratorWorker(Thread):
             DreamStateOperator.render_state = RenderState.FINISHED
             return
 
-        if self.ui_context == UIContext.IMAGE_EDITOR:
+        if self.render_context == UIContext.IMAGE_EDITOR:
             DreamStateOperator.render_state = RenderState.DIFFUSING
             if not os.path.exists(DreamStateOperator.init_img_path):
                 DreamStateOperator.reset_render_state()
@@ -161,7 +165,7 @@ class GeneratorWorker(Thread):
             render_file_type = "JPG"
 
         # img2img mode
-        if self.ui_context == UIContext.SCENE_VIEW_FRAME:
+        if self.render_context == RenderContext.FRAME:
             DreamStateOperator.diffusion_output_path = output_file_path
             if not os.path.exists(DreamStateOperator.init_img_path):
                 raise Exception(
@@ -174,7 +178,7 @@ class GeneratorWorker(Thread):
             )
             if status != 200:
                 raise Exception("Error generating image: {} {}".format(status, reason))
-        elif DreamStateOperator.ui_context == UIContext.SCENE_VIEW_ANIMATION:
+        elif self.render_context == RenderContext.ANIMATION:
             frames_glob = os.path.join(
                 DreamStateOperator.output_dir,
                 "{}*.{}".format(RENDER_PREFIX, render_file_type.lower()),
@@ -249,7 +253,7 @@ class DreamRenderOperator(Operator):
                     OutputLocation.NEW_TEXTURE,
                     OutputLocation.CURRENT_TEXTURE,
                 )
-                and ui_context != UIContext.SCENE_VIEW_ANIMATION
+                and ui_context != UIContext.SCENE_VIEW
             ):
                 rendered_image = bpy.data.images.load(
                     DreamStateOperator.diffusion_output_path
@@ -266,7 +270,7 @@ class DreamRenderOperator(Operator):
                     image_tex_area.spaces.active.image = copy_image(rendered_image)
             elif (
                 output_location == OutputLocation.FILE_SYSTEM
-                or ui_context == UIContext.SCENE_VIEW_ANIMATION
+                or ui_context == UIContext.SCENE_VIEW
             ):
                 if os.name == "nt":
                     os.startfile(DreamStateOperator.results_dir)
@@ -302,11 +306,15 @@ class DreamRenderOperator(Operator):
             InitSource[settings.init_source],
         )
         scene = bpy.context.scene
-        ui_context = DreamStateOperator.ui_context
+        ui_context, render_context = (
+            DreamStateOperator.ui_context,
+            DreamStateOperator.render_context,
+        )
         if context.area.type == "IMAGE_EDITOR":
             ui_context = UIContext.IMAGE_EDITOR
+
         output_dir, results_dir = setup_render_directories(clear=re_render)
-        render_anim = ui_context == UIContext.SCENE_VIEW_ANIMATION
+        render_anim = render_context == RenderContext.ANIMATION
         DreamStateOperator.output_dir = output_dir
         DreamStateOperator.results_dir = results_dir
         if render_anim:
@@ -332,19 +340,12 @@ class DreamRenderOperator(Operator):
             init_image.save_render(DreamStateOperator.init_img_path)
 
         # We only support rendering from the render in the 3D view
-        if (
-            ui_context == UIContext.SCENE_VIEW_ANIMATION
-            or ui_context == UIContext.SCENE_VIEW_FRAME
-        ):
+        if ui_context == UIContext.SCENE_VIEW:
             init_source = InitSource.SCENE_RENDER
 
         # Render 3D view
         if init_source == InitSource.SCENE_RENDER and (
-            (
-                ui_context
-                in (UIContext.SCENE_VIEW_ANIMATION, UIContext.SCENE_VIEW_FRAME)
-                and re_render
-            )
+            (ui_context == UIContext.SCENE_VIEW and re_render)
             or (ui_context == UIContext.IMAGE_EDITOR)
         ):
             user_filepath = scene.render.filepath
@@ -370,7 +371,7 @@ class DreamRenderOperator(Operator):
 
         DreamStateOperator.ui_context = ui_context
         DreamStateOperator.generator_thread = GeneratorWorker(
-            scene, context, ui_context
+            scene, context, ui_context, render_context
         )
         DreamStateOperator.generator_thread.start()
 
@@ -386,7 +387,8 @@ class DreamStateOperator(Operator):
     bl_label = "Dream"
     bl_options = {"REGISTER"}
 
-    ui_context = UIContext.SCENE_VIEW_ANIMATION
+    ui_context = UIContext.SCENE_VIEW
+    render_context = RenderContext.FRAME
     render_state = RenderState.IDLE
     pause_reason = PauseReason.NONE
     current_frame_idx = 0
