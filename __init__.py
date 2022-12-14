@@ -58,7 +58,7 @@ def ui_update(self, context):
 
 
 bl_info = {
-    "name": "Dream Studio",
+    "name": "Stability for Blender",
     "author": "Stability AI",
     "description": "",
     "blender": (2, 80, 0),
