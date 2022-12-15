@@ -66,9 +66,8 @@ class DS_CancelRenderOperator(Operator):
     def execute(self, context):
         log_sentry_event(TrackingEvent.CANCEL_GENERATION)
         log_analytics_event(TrackingEvent.CANCEL_GENERATION)
-        DreamStateOperator.render_state = RenderState.IDLE
-        DreamStateOperator.generator_thread.running = False
         DreamStateOperator.reset_render_state()
+        DreamStateOperator.render_state = RenderState.IDLE
         return {"FINISHED"}
 
 

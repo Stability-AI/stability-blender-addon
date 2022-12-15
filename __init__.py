@@ -136,13 +136,13 @@ class DreamStudioSettings(bpy.types.PropertyGroup):
     )
     init_image_height: EnumProperty(
         name="Init Image Height",
-        default=1,
+        default=512,
         items=get_image_size_options,
         description="The height of the image that is sent to the model. The rendered frame will be scaled to this size",
     )
     init_image_width: EnumProperty(
         name="Init Image Width",
-        default=1,
+        default=512,
         items=get_image_size_options,
         description="The width of the image that is sent to the model. The rendered frame will be scaled to this size",
     )
