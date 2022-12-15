@@ -207,10 +207,10 @@ def validate_settings(
             )
         if (
             render_context == RenderContext.ANIMATION
-            and init_source != InitSource.EXISTING_RENDER_OR_TEXTURE
+            and init_source != InitSource.EXISTING_VIDEO
         ):
             return (False, "Animation must use an existing render as init.")
-        if (render_context == RenderContext.TEXTURE and init_source != InitSource.EXISTING_RENDER_OR_TEXTURE):
+        if (render_context == RenderContext.TEXTURE and init_source != InitSource.EXISTING_VIDEO):
             return (False, "Texture must use an existing render as init.")
         if width * height > 1_000_000:
             return False, "Init image size cannot be greater than 1 megapixel."

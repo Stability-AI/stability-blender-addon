@@ -95,8 +95,16 @@ class RenderState(Enum):
 # Where to grab the init image from.
 class InitSource(Enum):
     TEXT = 1
-    EXISTING_RENDER_OR_TEXTURE = 2
-    NEW_RENDER = 3
+    # From an image that is already rendered on disk.
+    EXISTING_IMAGE = 2
+    EXISTING_ANIMATION = 3
+    RENDER_IMAGE = 4
+    NEW_RENDER = 5
+
+# Which UI element are we operating from?
+class UIContext(Enum):
+    SCENE_VIEW = 1
+    IMAGE_EDITOR = 2
 
 # What to display to the user when generation is finished
 class OutputDisplayLocation(Enum):
@@ -107,16 +115,16 @@ class OutputDisplayLocation(Enum):
 INIT_SOURCES = [
     (InitSource.TEXT.name, "Text Prompt Only", "", InitSource.TEXT.value),
     (
-        InitSource.NEW_RENDER.name,
+        InitSource.EXISTING_IMAGE.name,
         "Camera View (Render)",
         "",
         InitSource.NEW_RENDER.value,
     ),
     (
-        InitSource.EXISTING_RENDER_OR_TEXTURE.name,
+        InitSource.EXISTING_VIDEO.name,
         "Existing Rendered Output",
         "",
-        InitSource.EXISTING_RENDER_OR_TEXTURE.value,
+        InitSource.EXISTING_VIDEO.value,
     ),
 ]
 
@@ -135,19 +143,6 @@ OUTPUT_LOCATIONS = [
         OutputDisplayLocation.FILE_SYSTEM.value,
     ),
 ]
-
-# Which UI element are we operating from?
-class UIContext(Enum):
-    SCENE_VIEW = 1
-    IMAGE_EDITOR = 2
-
-# What exactly are we rendering?
-# Animation is only supported from existing renders.
-class RenderContext(Enum):
-    FRAME = 1
-    TEXTURE = 2
-    ANIMATION = 3
-
 class Sampler(Enum):
     K_EULER = 1
     K_DPM_2 = 2

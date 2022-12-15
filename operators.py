@@ -94,6 +94,7 @@ class DS_CancelRenderOperator(Operator):
         log_sentry_event(TrackingEvent.CANCEL_GENERATION)
         log_analytics_event(TrackingEvent.CANCEL_GENERATION)
         DreamStateOperator.reset_render_state()
+        DreamStateOperator.kill_render_thread()
         DreamStateOperator.render_state = RenderState.IDLE
         return {"FINISHED"}
 
@@ -152,6 +153,7 @@ class GeneratorWorker(Thread):
                 capture_exception(e)
             DreamStateOperator.render_state = RenderState.IDLE
             DreamStateOperator.reset_render_state()
+            DreamStateOperator.kill_render_thread()
             raise e
 
     # This sets up directories for render, and then renders individual frames
@@ -178,6 +180,7 @@ class GeneratorWorker(Thread):
             DreamStateOperator.render_state = RenderState.DIFFUSING
             if not os.path.exists(DreamStateOperator.init_img_path):
                 DreamStateOperator.reset_render_state()
+                DreamStateOperator.kill_render_thread()
                 raise Exception(
                     "No image found at {}. Does the texture exist?".format(
                         DreamStateOperator.init_img_path
@@ -321,6 +324,7 @@ class DreamRenderOperator(Operator):
         settings = context.scene.ds_settings
         init_source = InitSource[settings.init_source]
         scene = bpy.context.scene
+        DreamStateOperator.kill_render_thread()
         ui_context, render_context = (
             DreamStateOperator.ui_context,
             DreamStateOperator.render_context,
@@ -366,7 +370,7 @@ class DreamRenderOperator(Operator):
 
             if res != {"FINISHED"}:
                 raise Exception("Failed to render: {}".format(res))
-        elif init_source == InitSource.EXISTING_RENDER_OR_TEXTURE:
+        elif init_source == InitSource.EXISTING_VIDEO:
             frames_glob = os.path.join(
                 outp,
                 "{}*.{}".format(RENDER_PREFIX, render_file_type.lower()),
@@ -408,6 +412,8 @@ class DreamStateOperator(Operator):
         self.cancel_rendering = False
         self.current_frame_idx = 0
         self.render_start_time = None
+    
+    def kill_render_thread(self):
         if self.generator_thread:
             try:
                 self.generator_thread.running = False
@@ -477,3 +483,17 @@ class DS_FinishOnboardingOperator(Operator):
         DreamStateOperator.sentry_initialized = True
         DreamStateOperator.render_state = RenderState.IDLE
         return {"FINISHED"}
+
+class SelectFileOperator(bpy.types.Operator):
+    bl_idname = "dreamstudio.select_file"
+    bl_label = "Select a file"
+    filepath = bpy.props.StringProperty(subtype="FILE_PATH")
+ 
+    def execute(self, context):
+        print(self.filepath)
+        return {'FINISHED'}
+ 
+    def invoke(self, context, event):
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
+
