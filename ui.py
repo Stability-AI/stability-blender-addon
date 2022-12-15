@@ -20,6 +20,7 @@ from .operators import (
     DS_LogIssueOperator,
     DS_FinishOnboardingOperator,
     DS_OpenDocumentationOperator,
+    DS_OpenRenderFolderOperator,
     DS_SceneRenderAnimationOperator,
     DS_SceneRenderFrameOperator,
     DreamRenderOperator,
@@ -250,7 +251,7 @@ class RenderOptionsPanelSectionImageEditor(PanelSectionImageEditor, Panel):
     bl_label = "Texture Options"
 
     def draw(self, context):
-        draw_render_options_panel(self, context)
+        draw_render_options_panel(self, context, UIContext.IMAGE_EDITOR)
 
 
 class RenderOptionsPanelSection3DEditor(PanelSection3D, Panel):
@@ -259,7 +260,7 @@ class RenderOptionsPanelSection3DEditor(PanelSection3D, Panel):
     bl_label = "3D View Options"
 
     def draw(self, context):
-        draw_render_options_panel(self, context)
+        draw_render_options_panel(self, context, UIContext.SCENE_VIEW)
 
 
 class AdvancedOptionsPanelSection3DEditor(PanelSection3D, Panel):
@@ -321,7 +322,7 @@ def draw_advanced_options_panel(self, context):
     sampler_row.enabled = not use_recommended
 
 
-def draw_render_options_panel(self, context):
+def draw_render_options_panel(self, context, ui_context: UIContext):
     layout = self.layout
     settings = context.scene.ds_settings
     use_custom_res = not settings.use_render_resolution
@@ -332,11 +333,16 @@ def draw_render_options_panel(self, context):
     if init_source != InitSource.NONE:
         layout.prop(settings, "init_strength")
 
-    layout.prop(settings, "re_render")
-    layout.prop(settings, "use_render_resolution")
+    use_resolution_label = "Use Render Resolution"
+    if ui_context == UIContext.SCENE_VIEW:
+        layout.prop(settings, "re_render")
+        use_resolution_label = "Use Texture Resolution"
+    layout.prop(settings, "use_render_resolution", text=use_resolution_label)
     image_size_row = layout.row()
     image_size_row.enabled = use_custom_res
     image_size_row.prop(settings, "init_image_height", text="Height")
     image_size_row.prop(settings, "init_image_width", text="Width")
 
     render_output_location_row(layout, settings)
+
+    layout.operator(DS_OpenRenderFolderOperator.bl_idname, text="Open Output Folder")

@@ -1,6 +1,7 @@
 import datetime
 from enum import Enum
 import heapq
+import subprocess
 import bpy
 from bpy.props import (
     StringProperty,
@@ -45,6 +46,13 @@ import platform
 import tempfile
 import time
 
+def open_folder(dir: str):
+    if platform.system() == "Windows":
+        os.startfile(dir)
+    elif platform.system() == "Darwin":
+        subprocess.call(["open", dir])
+    else:
+        subprocess.call(["xdg-open", dir])
 
 class DS_ContinueRenderOperator(Operator):
     """Continue Baking"""
@@ -273,10 +281,7 @@ class DreamRenderOperator(Operator):
                 output_location == OutputLocation.FILE_SYSTEM
                 or ui_context == UIContext.SCENE_VIEW
             ):
-                if os.name == "nt":
-                    os.startfile(DreamStateOperator.results_dir)
-                else:
-                    os.system("open " + DreamStateOperator.results_dir)
+                open_folder(DreamStateOperator.results_dir)
             DreamStateOperator.render_state = RenderState.IDLE
 
         if DreamStateOperator.render_state == RenderState.IDLE:
@@ -447,6 +452,15 @@ class DS_OpenWebViewOperator(Operator):
     def execute(self, context):
         log_sentry_event(TrackingEvent.OPEN_WEB_URL)
         log_analytics_event(TrackingEvent.OPEN_WEB_URL)
+        webbrowser.open(self.url)
+        return {"FINISHED"}
+
+
+class DS_OpenRenderFolderOperator(Operator):
+    bl_idname = "dreamstudio.open_render_folder"
+    bl_label = "Open Output Folder"
+
+    def execute(self, context):
         webbrowser.open(self.url)
         return {"FINISHED"}
 

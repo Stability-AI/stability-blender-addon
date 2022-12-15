@@ -13,6 +13,7 @@ from .operators import (
     DS_LogIssueOperator,
     DS_FinishOnboardingOperator,
     DS_OpenDocumentationOperator,
+    DS_OpenRenderFolderOperator,
     DS_SceneRenderAnimationOperator,
     DS_SceneRenderFrameOperator,
     DreamStateOperator,
@@ -37,6 +38,7 @@ from .data import (
     OUTPUT_LOCATIONS,
     APIType,
     Engine,
+    OutputLocation,
     Sampler,
     engine_to_blender_enum,
     enum_to_blender_enum,
@@ -131,7 +133,7 @@ class DreamStudioSettings(bpy.types.PropertyGroup):
     re_render: BoolProperty(name="Re-Render Scene", default=True)
     use_render_resolution: BoolProperty(
         name="Use Render Resolution",
-        default=True,
+        default=False,
         description="Use the resolution in Blender's Output Properties as the size of the init image.",
     )
     init_image_height: EnumProperty(
@@ -162,9 +164,9 @@ class DreamStudioSettings(bpy.types.PropertyGroup):
         description="The source of the initial image. Select Scene Render to render the current frame and use that render as the init image, or select Image Editor to use the currently open image in the image editor as the init image. Select None to just use the prompt text to generate the image",
     )
     output_location: EnumProperty(
-        name="Output",
+        name="Open Result In",
         items=OUTPUT_LOCATIONS,
-        default=2,
+        default=OutputLocation.CURRENT_TEXTURE.name,
         description="The location to save the output image. The default is to open the result as a new image in the image editor. The other options are to output the images to the file system, and open the explorer to the image when diffusion is complete, or replace the existing image in the image editor.",
     )
 
@@ -269,6 +271,7 @@ registered_operators = [
     RenderOptionsPanelSectionImageEditor,
     DS_FinishOnboardingOperator,
     DS_GetAPIKeyOperator,
+    DS_OpenRenderFolderOperator
 ]
 
 

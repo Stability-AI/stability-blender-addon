@@ -135,7 +135,7 @@ INIT_SOURCES = [
 OUTPUT_LOCATIONS = [
     (
         OutputLocation.NEW_TEXTURE.name,
-        "New Texture",
+        "Texture View",
         "",
         OutputLocation.NEW_TEXTURE.value,
     ),
