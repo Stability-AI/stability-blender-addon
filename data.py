@@ -92,58 +92,47 @@ class RenderState(Enum):
     # generation is finished and we want to display the finished texture this frame
     FINISHED = 7
 
-
-# Why are we pausing the render?
-class PauseReason(Enum):
-    NONE = 1
-    CONFIRM_CANCEL = 2
-    EXCEPTION = 3
-
-
 # Where to grab the init image from.
 class InitSource(Enum):
-    NONE = 1
-    SCENE_RENDER = 2
-    CURRENT_TEXTURE = 3
+    TEXT = 1
+    EXISTING_RENDER_OR_TEXTURE = 2
+    NEW_RENDER = 3
 
-
-# What to display to the user when generation is finished - either the file location, or the image in the texture view.
-class OutputLocation(Enum):
-    CURRENT_TEXTURE = 1
-    NEW_TEXTURE = 2
-    FILE_SYSTEM = 3
-
+# What to display to the user when generation is finished
+class OutputDisplayLocation(Enum):
+    TEXTURE_VIEW = 1
+    FILE_SYSTEM = 2
 
 # Used to display the init source property in the UI
 INIT_SOURCES = [
-    (InitSource.NONE.name, "None (Just Text)", "", InitSource.NONE.value),
+    (InitSource.TEXT.name, "Text Prompt Only", "", InitSource.TEXT.value),
     (
-        InitSource.CURRENT_TEXTURE.name,
-        "Current Texture",
+        InitSource.NEW_RENDER.name,
+        "Camera View (Render)",
         "",
-        InitSource.CURRENT_TEXTURE.value,
+        InitSource.NEW_RENDER.value,
     ),
     (
-        InitSource.SCENE_RENDER.name,
-        "Scene Render",
+        InitSource.EXISTING_RENDER_OR_TEXTURE.name,
+        "Existing Rendered Output",
         "",
-        InitSource.SCENE_RENDER.value,
+        InitSource.EXISTING_RENDER_OR_TEXTURE.value,
     ),
 ]
 
 # where to send the resulting texture
 OUTPUT_LOCATIONS = [
     (
-        OutputLocation.NEW_TEXTURE.name,
+        OutputDisplayLocation.NEW_TEXTURE.name,
         "Texture View",
         "",
-        OutputLocation.NEW_TEXTURE.value,
+        OutputDisplayLocation.NEW_TEXTURE.value,
     ),
     (
-        OutputLocation.FILE_SYSTEM.name,
+        OutputDisplayLocation.FILE_SYSTEM.name,
         "File System",
         "",
-        OutputLocation.FILE_SYSTEM.value,
+        OutputDisplayLocation.FILE_SYSTEM.value,
     ),
 ]
 
@@ -152,6 +141,8 @@ class UIContext(Enum):
     SCENE_VIEW = 1
     IMAGE_EDITOR = 2
 
+# What exactly are we rendering?
+# Animation is only supported from existing renders.
 class RenderContext(Enum):
     FRAME = 1
     TEXTURE = 2

@@ -2,6 +2,7 @@ import datetime
 from enum import Enum
 import heapq
 import subprocess
+from typing import List
 import bpy
 from bpy.props import (
     StringProperty,
@@ -27,8 +28,7 @@ from .data import (
     TrackingEvent,
     UIContext,
     InitSource,
-    OutputLocation,
-    PauseReason,
+    OutputDisplayLocation,
     RenderState,
     copy_image,
     format_rest_args,
@@ -53,6 +53,25 @@ def open_folder(dir: str):
         subprocess.call(["open", dir])
     else:
         subprocess.call(["xdg-open", dir])
+
+
+# Create and clear render directories. This function should get all filesystem info for rendering,
+# as well as any platform specific info.
+def setup_render_directories():
+    dreamstudio_dir = os.path.join(tempfile.gettempdir(), "dreamstudio")
+    generated_images_dir = os.path.join(dreamstudio_dir, "generated_images")
+    generated_animation_dir = os.path.join(dreamstudio_dir, "generated_animation")
+    for dir in [dreamstudio_dir, generated_images_dir, generated_animation_dir]:
+        if not os.path.exists(dir):
+            os.mkdir(dir)
+        if dir == generated_animation_dir:
+            files = glob.glob(f"{dir}/*")
+            for f in files:
+                if not os.path.isdir(f):
+                    os.remove(f)
+    return dreamstudio_dir, generated_images_dir, generated_animation_dir
+
+SUPPORTED_RENDER_FILE_TYPES = {"PNG", "JPEG"}
 
 class DS_ContinueRenderOperator(Operator):
     """Continue Baking"""
@@ -111,12 +130,14 @@ class DS_SceneRenderAnimationOperator(Operator):
 
 class GeneratorWorker(Thread):
     def __init__(
-        self, scene, context, render_context: RenderContext, ui_context: UIContext
+        self, scene, context, render_context: RenderContext, ui_context: UIContext, input_img_paths: List[str], output_img_directory: str
     ):
         self.scene = scene
         self.context = context
         self.render_context: RenderContext = render_context
         self.ui_context: UIContext = ui_context
+        self.input_img_paths: List[str] = input_img_paths
+        self.output_img_directory = output_img_directory
         self.running: bool = True
         self.init_source: InitSource = InitSource[scene.ds_settings.init_source]
         Thread.__init__(self)
@@ -133,6 +154,7 @@ class GeneratorWorker(Thread):
             DreamStateOperator.reset_render_state()
             raise e
 
+    # This sets up directories for render, and then renders individual frames
     def generate(self):
         settings = self.scene.ds_settings
         scene = self.scene
@@ -140,19 +162,19 @@ class GeneratorWorker(Thread):
 
         DreamStateOperator.render_state = RenderState.DIFFUSING
         output_file_path = os.path.join(DreamStateOperator.results_dir, f"result.png")
-        DreamStateOperator.diffusion_output_path = output_file_path
         init_image_width, init_image_height = get_init_image_dimensions(settings, scene)
 
         # text2img mode
-        if self.init_source == InitSource.NONE:
+        if self.init_source == InitSource.TEXT:
             DreamStateOperator.render_state = RenderState.DIFFUSING
             status, reason = render_text2img(
-                DreamStateOperator.diffusion_output_path, args
+                self.output_img_directory, args
             )
             DreamStateOperator.render_state = RenderState.FINISHED
             return
 
-        if self.render_context == UIContext.IMAGE_EDITOR:
+        # img2img mode - image editor, which can only generate from textures and text
+        if self.render_context == RenderContext.TEXTURE:
             DreamStateOperator.render_state = RenderState.DIFFUSING
             if not os.path.exists(DreamStateOperator.init_img_path):
                 DreamStateOperator.reset_render_state()
@@ -169,31 +191,22 @@ class GeneratorWorker(Thread):
             DreamStateOperator.render_state = RenderState.FINISHED
             return
 
-        render_file_type = scene.render.image_settings.file_format
-        if render_file_type == "JPEG":
-            render_file_type = "JPG"
-
-        # img2img mode
+        # img2img mode - 3D view
         if self.render_context == RenderContext.FRAME:
-            DreamStateOperator.diffusion_output_path = output_file_path
-            if not os.path.exists(DreamStateOperator.init_img_path):
+            input_img_path = self.input_img_paths[0]
+            if not os.path.exists(input_img_path):
                 raise Exception(
                     "No image found at {}. Was the scene rendered, or is re-render disabled?".format(
                         DreamStateOperator.init_img_path
                     )
                 )
             status, reason = render_img2img(
-                DreamStateOperator.init_img_path, output_file_path, args
+                input_img_path, output_file_path, args
             )
             if status != 200:
                 raise Exception("Error generating image: {} {}".format(status, reason))
         elif self.render_context == RenderContext.ANIMATION:
-            frames_glob = os.path.join(
-                DreamStateOperator.output_dir,
-                "{}*.{}".format(RENDER_PREFIX, render_file_type.lower()),
-            )
-            rendered_frame_image_paths = glob.glob(frames_glob)
-            rendered_frame_image_paths = list(sorted(rendered_frame_image_paths))
+            rendered_frame_image_paths = list(sorted(self.input_img_paths))
             if len(rendered_frame_image_paths) == 0:
                 raise Exception(
                     "No rendered frames found. Please render the scene first."
@@ -201,7 +214,6 @@ class GeneratorWorker(Thread):
             end_frame = len(rendered_frame_image_paths)
             DreamStateOperator.total_frame_count = end_frame
             for i, frame_img_file in enumerate(rendered_frame_image_paths[:end_frame]):
-                print("about to render frame", i, self.running)
                 if (
                     not self.running
                     or DreamStateOperator.render_state == RenderState.CANCELLED
@@ -241,7 +253,7 @@ class DreamRenderOperator(Operator):
     def modal(self, context, event):
 
         settings = context.scene.ds_settings
-        output_location = OutputLocation[settings.output_location]
+        output_location = OutputDisplayLocation[settings.output_location]
         ui_context = DreamStateOperator.ui_context
 
         if DreamStateOperator.render_start_time:
@@ -259,8 +271,8 @@ class DreamRenderOperator(Operator):
             if (
                 output_location
                 in (
-                    OutputLocation.NEW_TEXTURE,
-                    OutputLocation.CURRENT_TEXTURE,
+                    OutputDisplayLocation.NEW_TEXTURE,
+                    OutputDisplayLocation.CURRENT_TEXTURE,
                 )
                 and ui_context != UIContext.SCENE_VIEW
             ):
@@ -278,7 +290,7 @@ class DreamRenderOperator(Operator):
                     image_tex_area.type = "IMAGE_EDITOR"
                     image_tex_area.spaces.active.image = copy_image(rendered_image)
             elif (
-                output_location == OutputLocation.FILE_SYSTEM
+                output_location == OutputDisplayLocation.FILE_SYSTEM
                 or ui_context == UIContext.SCENE_VIEW
             ):
                 open_folder(DreamStateOperator.results_dir)
@@ -307,10 +319,7 @@ class DreamRenderOperator(Operator):
     def execute(self, context):
         wm = context.window_manager
         settings = context.scene.ds_settings
-        re_render, init_source = (
-            settings.re_render,
-            InitSource[settings.init_source],
-        )
+        init_source = InitSource[settings.init_source]
         scene = bpy.context.scene
         ui_context, render_context = (
             DreamStateOperator.ui_context,
@@ -320,18 +329,6 @@ class DreamRenderOperator(Operator):
             ui_context = UIContext.IMAGE_EDITOR
             render_context = RenderContext.TEXTURE
 
-        output_dir, results_dir = setup_render_directories(clear=re_render)
-        render_anim = render_context == RenderContext.ANIMATION
-        DreamStateOperator.output_dir = output_dir
-        DreamStateOperator.results_dir = results_dir
-        if render_anim:
-            DreamStateOperator.init_img_path = os.path.join(
-                DreamStateOperator.output_dir, "render_"
-            )
-        else:
-            DreamStateOperator.init_img_path = os.path.join(
-                DreamStateOperator.output_dir, "init.png"
-            )
         init_image_width, init_image_height = get_init_image_dimensions(settings, scene)
 
         # If we are in the image editor, we need to save the image to a temporary file to use for init
@@ -348,16 +345,11 @@ class DreamRenderOperator(Operator):
 
         # We only support rendering from the render in the 3D view
         if ui_context == UIContext.SCENE_VIEW:
-            init_source = InitSource.SCENE_RENDER
+            init_source = InitSource.NEW_RENDER
 
         # Render 3D view
-        if init_source == InitSource.SCENE_RENDER and (
-            (ui_context == UIContext.SCENE_VIEW and re_render)
-            or (ui_context == UIContext.IMAGE_EDITOR)
-        ):
-            user_filepath = scene.render.filepath
-            scene.render.filepath = DreamStateOperator.init_img_path
-
+        if init_source == InitSource.NEW_RENDER:
+            render_path = scene.render.filepath
             render_file_type = scene.render.image_settings.file_format
 
             if render_file_type not in SUPPORTED_RENDER_FILE_TYPES:
@@ -368,17 +360,20 @@ class DreamRenderOperator(Operator):
             tmp_w, tmp_h = scene.render.resolution_x, scene.render.resolution_y
             scene.render.resolution_x = init_image_width
             scene.render.resolution_y = init_image_height
-            res = bpy.ops.render.render(write_still=True, animation=render_anim)
+            res = bpy.ops.render.render(write_still=True, animation=False)
             scene.render.resolution_x = tmp_w
             scene.render.resolution_y = tmp_h
 
-            scene.render.filepath = user_filepath
             if res != {"FINISHED"}:
                 raise Exception("Failed to render: {}".format(res))
-
-        DreamStateOperator.ui_context = ui_context
+        elif init_source == InitSource.EXISTING_RENDER_OR_TEXTURE:
+            frames_glob = os.path.join(
+                outp,
+                "{}*.{}".format(RENDER_PREFIX, render_file_type.lower()),
+            )
+            rendered_frame_image_paths = glob.glob(frames_glob)
         DreamStateOperator.generator_thread = GeneratorWorker(
-            scene, context, render_context, ui_context
+            scene, context, render_context, ui_context, input_img_paths=rendered_frame_image_paths, output_img_directory=DreamStateOperator.output_dir
         )
         DreamStateOperator.generator_thread.start()
 
@@ -397,13 +392,11 @@ class DreamStateOperator(Operator):
     ui_context = UIContext.SCENE_VIEW
     render_context = RenderContext.FRAME
     render_state = RenderState.IDLE
-    pause_reason = PauseReason.NONE
     current_frame_idx = 0
     total_frame_count = 0
     generator_thread: Thread = None
     diffusion_output_path = None
     init_img_path = None
-    output_dir = None
     results_dir = None
     render_start_time: float = None
 
@@ -412,7 +405,6 @@ class DreamStateOperator(Operator):
     # Cancel any in-progress render and reset the addon state.
     def reset_render_state():
         self = DreamStateOperator
-        self.pause_reason = PauseReason.NONE
         self.cancel_rendering = False
         self.current_frame_idx = 0
         self.render_start_time = None
@@ -424,23 +416,6 @@ class DreamStateOperator(Operator):
                 print(e)
 
 
-# Create and clear render directories. This function should get all filesystem info for rendering,
-# as well as any platform specific info.
-def setup_render_directories(clear=False):
-    output_dir = os.path.join(tempfile.gettempdir(), "dreamstudio")
-    results_dir = os.path.join(output_dir, "results")
-    for dir in [output_dir, results_dir]:
-        if not os.path.exists(dir):
-            os.mkdir(dir)
-        elif clear:
-            files = glob.glob(f"{dir}/*")
-            for f in files:
-                if not os.path.isdir(f):
-                    os.remove(f)
-    return output_dir, results_dir
-
-
-SUPPORTED_RENDER_FILE_TYPES = {"PNG", "JPEG"}
 
 
 class DS_OpenWebViewOperator(Operator):

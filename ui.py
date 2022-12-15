@@ -175,7 +175,6 @@ class DreamStudio3DPanel(Panel):
             render_in_progress_view(layout)
             return
 
-        valid = render_validation(layout, settings, scene, UIContext.SCENE_VIEW)
         render_prompt_list(scene, layout)
 
         row = layout.row()
@@ -184,29 +183,35 @@ class DreamStudio3DPanel(Panel):
             DS_SceneRenderAnimationOperator.bl_idname, text="Dream (Animation)"
         )
         row.operator(DS_SceneRenderFrameOperator.bl_idname, text="Dream (Frame)")
+        valid = render_validation(layout, settings, scene, UIContext.SCENE_VIEW)
         row.enabled = valid
         render_links_row(layout)
 
 
 # Validation messages should be no longer than 50 chars or so.
 def validate_settings(
-    settings, scene, ui_render_context: UIContext
+    settings, scene, ui_context: UIContext, render_context: RenderContext
 ) -> tuple[bool, str]:
     width, height = get_init_image_dimensions(settings, scene)
     prompts = scene.prompt_list
     # cannot be > 1 megapixel
     init_source = InitSource[settings.init_source]
-    if init_source != InitSource.NONE:
+    if init_source != InitSource.TEXT:
         if (
-            ui_render_context == UIContext.IMAGE_EDITOR
-            and init_source == InitSource.SCENE_RENDER
-        ):
-            return False, "Rendering to image editor is not supported."
-        if (
-            ui_render_context == UIContext.SCENE_VIEW
+            ui_context == UIContext.SCENE_VIEW
             and init_source == InitSource.CURRENT_TEXTURE
         ):
-            return False, "Rendering from image editor is not supported."
+            return (
+                False,
+                "Generating to the scene view from a texture is not supported.",
+            )
+        if (
+            render_context == RenderContext.ANIMATION
+            and init_source != InitSource.EXISTING_RENDER_OR_TEXTURE
+        ):
+            return (False, "Animation must use an existing render as init.")
+        if (render_context == RenderContext.TEXTURE and init_source != InitSource.EXISTING_RENDER_OR_TEXTURE):
+            return (False, "Texture must use an existing render as init.")
         if width * height > 1_000_000:
             return False, "Init image size cannot be greater than 1 megapixel."
 
@@ -229,9 +234,9 @@ def render_validation(layout, settings, scene, ui_context: UIContext):
     if not valid:
         layout.label(text=validation_msg, icon="ERROR")
     else:
-        if re_render and init_source == InitSource.SCENE_RENDER:
+        if re_render and init_source == InitSource.NEW_RENDER:
             layout.label(
-                text="Ready! Scene will render first, this will lock Blender.",
+                text="Ready! Rendering from scene view.",
                 icon="CHECKMARK",
             )
         else:
@@ -257,7 +262,7 @@ class RenderOptionsPanelSectionImageEditor(PanelSectionImageEditor, Panel):
 class RenderOptionsPanelSection3DEditor(PanelSection3D, Panel):
 
     bl_parent_id = DreamStudio3DPanel.bl_idname
-    bl_label = "3D View Options"
+    bl_label = "Render Options"
 
     def draw(self, context):
         draw_render_options_panel(self, context, UIContext.SCENE_VIEW)
@@ -330,7 +335,7 @@ def draw_render_options_panel(self, context, ui_context: UIContext):
     if DreamStateOperator.render_state == RenderState.ONBOARDING:
         return
     layout.prop(settings, "init_source")
-    if init_source != InitSource.NONE:
+    if init_source != InitSource.TEXT:
         layout.prop(settings, "init_strength")
 
     use_resolution_label = "Use Render Resolution"
