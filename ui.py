@@ -49,6 +49,7 @@ class PanelSectionImageEditor:
 
 
 def render_in_progress_view(layout):
+    init_source = get_init_source()
     state_text = (
         "Rendering..."
         if DreamStateOperator.render_state == RenderState.RENDERING
@@ -57,6 +58,10 @@ def render_in_progress_view(layout):
     if DreamStateOperator.render_start_time:
         state_text += " ({}s)".format(
             round(time.time() - DreamStateOperator.render_start_time, 1)
+        )
+    if init_source == InitSource.EXISTING_VIDEO:
+        state_text += " (frame {} / {})".format(
+            DreamStateOperator.current_frame_idx, DreamStateOperator.total_frame_count
         )
     layout.label(text=state_text)
     cancel_text = (
@@ -247,8 +252,9 @@ def validate_settings(
                 "Input directory is not valid.",
             )
 
+        search_glob = os.path.join(render_dir, f"*.{render_file_type.lower()}")
         files_in_dir = glob(
-            os.path.join(render_file_path, f"*.{render_file_type.lower()}")
+            search_glob
         )
         if len(files_in_dir) == 0:
             return (
