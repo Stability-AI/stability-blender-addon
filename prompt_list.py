@@ -7,7 +7,7 @@ MULTIPROMPT_ENABLED = True
 
 class PromptListItem(PropertyGroup):
     prompt: StringProperty(name="Prompt", default="")
-    strength: FloatProperty(name="Strength", default=1, min=0, max=1)
+    strength: FloatProperty(name="Strength", default=1, min=-1, max=1)
 
 
 class PromptListUIItem(UILayout):

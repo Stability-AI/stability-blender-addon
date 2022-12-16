@@ -115,7 +115,7 @@ class DS_SceneRenderViewportOperator(Operator):
 
 
 class DS_SceneRenderExistingOutputOperator(Operator):
-    """Render an entire animation as a sequence of frames, then send to Stability SDK for diffusion"""
+    """Send an existing set of rendered frames to Stability SDK for diffusion"""
 
     bl_idname = "dreamstudio.render_existing_output"
     bl_label = "Cancel"
@@ -124,6 +124,7 @@ class DS_SceneRenderExistingOutputOperator(Operator):
         DreamStateOperator.ui_context = UIContext.SCENE_VIEW
         DreamStateOperator.render_state = RenderState.RENDERING
         DreamStateOperator.render_start_time = time.time()
+        DreamStateOperator.rendering_from_texture = True
         bpy.ops.dreamstudio.dream_render_operator()
         return {"FINISHED"}
 
@@ -151,13 +152,13 @@ class GeneratorWorker(Thread):
         try:
             self.generate()
         except Exception as e:
+            DreamStateOperator.render_state = RenderState.IDLE
+            DreamStateOperator.reset_render_state()
+            DreamStateOperator.kill_render_thread()
             if check_dependencies_installed():
                 from sentry_sdk import capture_exception
 
                 capture_exception(e)
-            DreamStateOperator.render_state = RenderState.IDLE
-            DreamStateOperator.reset_render_state()
-            DreamStateOperator.kill_render_thread()
             raise e
 
     # This sets up directories for render, and then renders individual frames
@@ -178,19 +179,13 @@ class GeneratorWorker(Thread):
             status, reason = render_text2img(self.output_img_directory, args)
             DreamStateOperator.render_state = RenderState.FINISHED
             if status != 200:
-                DreamStateOperator.render_state = RenderState.IDLE
-                DreamStateOperator.reset_render_state()
-                DreamStateOperator.kill_render_thread()
                 raise Exception("Error generating image: {} {}".format(status, reason))
             return
 
         # img2img mode - image editor, which can only generate from textures and text
-        if self.init_source == InitSource.EXISTING_IMAGE:
+        if self.init_source == InitSource.EXISTING_IMAGE or self.init_source == InitSource.TEXTURE:
             DreamStateOperator.render_state = RenderState.DIFFUSING
             if not os.path.exists(init_img_path):
-                DreamStateOperator.render_state = RenderState.IDLE
-                DreamStateOperator.reset_render_state()
-                DreamStateOperator.kill_render_thread()
                 raise Exception(
                     "No image found at {}. Does the texture exist?".format(
                         init_img_path
@@ -253,6 +248,7 @@ class GeneratorWorker(Thread):
             scene.frame_set(0)
 
         DreamStateOperator.rendering_from_viewport = False
+        DreamStateOperator.rendering_from_texture = False
         if self.running:
             DreamStateOperator.render_state = RenderState.FINISHED
 
@@ -351,11 +347,14 @@ class DreamRenderOperator(Operator):
         if DreamStateOperator.rendering_from_viewport:
             init_source = InitSource.VIEWPORT
 
+        if DreamStateOperator.rendering_from_texture:
+            init_source = InitSource.TEXTURE
+
         # If we are in the image editor, we need to save the image to a temporary file to use for init
-        if ui_context == UIContext.IMAGE_EDITOR and init_source == InitSource.EXISTING_IMAGE:
+        if init_source == InitSource.TEXTURE:
             img = context.space_data.image
             if not img:
-                raise Exception("No image selected")
+                raise Exception("No image selected!")
             init_image = copy_image(img)
             init_image.scale(init_image_width, init_image_height)
             init_image.save_render(init_img_path)
@@ -421,6 +420,7 @@ class DreamStateOperator(Operator):
     total_frame_count = 0
     generator_thread: Thread = None
     rendering_from_viewport = False
+    rendering_from_texture = False
     # Where we put images that are generated after the diffusion step.
     # Either generated_images_dir or generation_animation_dir will be set.
     generated_output_dir = None

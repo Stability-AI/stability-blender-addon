@@ -153,6 +153,11 @@ class DreamStudioSettings(bpy.types.PropertyGroup):
         default=InitSource.EXISTING_IMAGE.value,
         description="The source of the initial image. Select Scene Render to render the current frame and use that render as the init image, or select Image Editor to use the currently open image in the image editor as the init image. Select None to just use the prompt text to generate the image",
     )
+    image_editor_use_init: BoolProperty(
+        name="Use Init Image",
+        default=True,
+        description="Use the currently open image in the image editor as the init image. If unchecked, just use text",
+    )
     output_location: EnumProperty(
         name="Open Result In",
         items=OUTPUT_LOCATIONS,

@@ -103,6 +103,7 @@ class InitSource(Enum):
     EXISTING_VIDEO = 3
     # From a texture that is already on disk.
     VIEWPORT = 4
+    TEXTURE = 5
 
 
 # Which UI element are we operating from?
