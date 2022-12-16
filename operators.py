@@ -61,11 +61,15 @@ def setup_render_directories():
     dreamstudio_dir = os.path.join(tempfile.gettempdir(), "dreamstudio")
     rendered_dir = os.path.join(dreamstudio_dir, "rendered")
     generated_images_dir = os.path.join(dreamstudio_dir, "generated_images")
-    for dir in [dreamstudio_dir, generated_images_dir, rendered_dir]:
+    generated_animation_dir = os.path.join(dreamstudio_dir, "generated_animation")
+    for dir in [dreamstudio_dir, generated_images_dir, rendered_dir, generated_animation_dir]:
         if not os.path.exists(dir):
             os.mkdir(dir)
         if not os.access(dir, os.W_OK):
             raise Exception(f"Directory {dir} is not writable. Please check your Blender application permissions.")
+        if dir == generated_animation_dir:
+            for file in glob(os.path.join(dir, "*")):
+                os.remove(file)
     return rendered_dir, generated_images_dir
 
 
@@ -166,18 +170,25 @@ class GeneratorWorker(Thread):
         output_file_path = os.path.join(self.output_img_directory, "result.png")
         init_image_width, init_image_height = get_init_image_dimensions(settings, scene)
         init_img_path = self.input_img_paths[0]
+        DreamStateOperator.last_rendered_image_path = output_file_path
 
         # text2img mode
         if self.init_source == InitSource.TEXT:
             DreamStateOperator.render_state = RenderState.DIFFUSING
             status, reason = render_text2img(self.output_img_directory, args)
             DreamStateOperator.render_state = RenderState.FINISHED
+            if status != 200:
+                DreamStateOperator.render_state = RenderState.IDLE
+                DreamStateOperator.reset_render_state()
+                DreamStateOperator.kill_render_thread()
+                raise Exception("Error generating image: {} {}".format(status, reason))
             return
 
         # img2img mode - image editor, which can only generate from textures and text
         if self.init_source == InitSource.EXISTING_IMAGE:
             DreamStateOperator.render_state = RenderState.DIFFUSING
             if not os.path.exists(init_img_path):
+                DreamStateOperator.render_state = RenderState.IDLE
                 DreamStateOperator.reset_render_state()
                 DreamStateOperator.kill_render_thread()
                 raise Exception(
@@ -218,7 +229,7 @@ class GeneratorWorker(Thread):
                     not self.running
                     or DreamStateOperator.render_state == RenderState.CANCELLED
                 ):
-                    break
+                    return
                 scene.frame_set(i + 1)
                 DreamStateOperator.render_start_time = time.time()
                 args = format_rest_args(settings, scene.prompt_list)
@@ -242,7 +253,8 @@ class GeneratorWorker(Thread):
             scene.frame_set(0)
 
         DreamStateOperator.rendering_from_viewport = False
-        DreamStateOperator.render_state = RenderState.FINISHED
+        if self.running:
+            DreamStateOperator.render_state = RenderState.FINISHED
 
 
 # Sets up the init image / animation, as well as setting all DreamStateOperator state that is passed to
@@ -257,6 +269,7 @@ class DreamRenderOperator(Operator):
         output_location = OutputDisplayLocation[settings.output_location]
         ui_context = DreamStateOperator.ui_context
 
+
         if DreamStateOperator.render_start_time:
             settings.current_time = time.time() - DreamStateOperator.render_start_time
 
@@ -265,6 +278,7 @@ class DreamRenderOperator(Operator):
             return {"FINISHED"}
 
         if DreamStateOperator.render_state == RenderState.FINISHED:
+            DreamStateOperator.render_state = RenderState.IDLE
             image_tex_area = None
             for area in bpy.context.screen.areas:
                 if area.type == "IMAGE_EDITOR":
@@ -273,7 +287,7 @@ class DreamRenderOperator(Operator):
                 output_location == OutputDisplayLocation.TEXTURE_VIEW
             ):
                 rendered_image = bpy.data.images.load(
-                    DreamStateOperator.diffusion_output_path
+                    DreamStateOperator.last_rendered_image_path
                 )
                 if image_tex_area:
                     image_tex_area.spaces.active.image = copy_image(rendered_image)
@@ -290,7 +304,6 @@ class DreamRenderOperator(Operator):
                 or ui_context == UIContext.SCENE_VIEW
             ):
                 open_folder(DreamStateOperator.generated_images_dir)
-            DreamStateOperator.render_state = RenderState.IDLE
 
         if DreamStateOperator.render_state == RenderState.IDLE:
             return {"FINISHED"}
@@ -409,6 +422,7 @@ class DreamStateOperator(Operator):
     generated_images_dir = None
     # Where we put images that are rendered by the addon.
     rendered_images_dir = None
+    last_rendered_image_path = None
     render_start_time: float = None
 
     sentry_initialized = False
@@ -443,8 +457,8 @@ class DS_OpenWebViewOperator(Operator):
         return {"FINISHED"}
 
 
-class DS_OpenRenderFolderOperator(Operator):
-    bl_idname = "dreamstudio.open_render_folder"
+class DS_OpenOutputFolderOperator(Operator):
+    bl_idname = "dreamstudio.open_output_folder"
     bl_label = "Open Output Folder"
 
     def execute(self, context):

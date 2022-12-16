@@ -13,7 +13,7 @@ from .operators import (
     DS_LogIssueOperator,
     DS_FinishOnboardingOperator,
     DS_OpenDocumentationOperator,
-    DS_OpenRenderFolderOperator,
+    DS_OpenOutputFolderOperator,
     DS_SceneRenderExistingOutputOperator,
     DS_SceneRenderViewportOperator,
     DreamStateOperator,
@@ -261,7 +261,7 @@ registered_operators = [
     RenderOptionsPanelSectionImageEditor,
     DS_FinishOnboardingOperator,
     DS_GetAPIKeyOperator,
-    DS_OpenRenderFolderOperator
+    DS_OpenOutputFolderOperator
 ]
 
 

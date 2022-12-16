@@ -23,7 +23,7 @@ from .operators import (
     DS_LogIssueOperator,
     DS_FinishOnboardingOperator,
     DS_OpenDocumentationOperator,
-    DS_OpenRenderFolderOperator,
+    DS_OpenOutputFolderOperator,
     DS_SceneRenderExistingOutputOperator,
     DS_SceneRenderViewportOperator,
     DreamRenderOperator,
@@ -180,7 +180,7 @@ class DreamStudio3DPanel(Panel):
         row.scale_y = 2.0
         row.operator(DS_SceneRenderViewportOperator.bl_idname, text="Dream (Viewport)")
         row.operator(
-            DS_SceneRenderExistingOutputOperator.bl_idname, text="Dream (Render)"
+            DS_SceneRenderExistingOutputOperator.bl_idname, text="Dream (Last Render)"
         )
         valid = render_validation(layout, settings, scene, UIContext.SCENE_VIEW)
         row.enabled = valid
@@ -221,18 +221,20 @@ def validate_settings(
 
     if init_source == InitSource.EXISTING_VIDEO:
 
+        render_dir = os.path.dirname(render_file_path)
+
         # filepath is a directory in this case
-        if not os.path.isdir(render_file_path):
+        if not os.path.isdir(render_dir):
             return (
                 False,
                 "Input directory is not valid.",
             )
 
-        files_in_dir = glob(os.path.join(render_file_path, f"*.{render_file_type}"))
+        files_in_dir = glob(os.path.join(render_file_path, f"*.{render_file_type.lower()}"))
         if len(files_in_dir) == 0:
             return (
                 False,
-                "No images found in the input directory. Check the Blender output settings, or render your animation.",
+                "No frames found in the input directory.",
             )
 
     for p in prompts:
@@ -366,4 +368,4 @@ def draw_render_options_panel(self, context, ui_context: UIContext):
 
     render_output_location_row(layout, settings)
 
-    layout.operator(DS_OpenRenderFolderOperator.bl_idname, text="Open Output Folder")
+    layout.operator(DS_OpenOutputFolderOperator.bl_idname, text="Open Output Folder")

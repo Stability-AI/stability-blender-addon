@@ -128,7 +128,7 @@ INIT_SOURCES = [
     ),
     (
         InitSource.EXISTING_VIDEO.name,
-        "Rendered Video",
+        "Rendered Video Frames",
         "",
         InitSource.EXISTING_VIDEO.value,
     ),
