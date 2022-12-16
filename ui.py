@@ -2,16 +2,20 @@ from . import addon_updater_ops
 import bpy
 from bpy.types import Panel
 import time
+import os
+from glob import glob
 
 from .prompt_list import MULTIPROMPT_ENABLED, render_prompt_list
 
 from .data import (
+    SUPPORTED_RENDER_FILE_TYPES,
     InitSource,
-    RenderContext,
     RenderState,
     UIContext,
+    ValidationState,
     check_dependencies_installed,
     get_init_image_dimensions,
+    get_init_source,
     get_preferences,
 )
 from .operators import (
@@ -20,9 +24,9 @@ from .operators import (
     DS_LogIssueOperator,
     DS_FinishOnboardingOperator,
     DS_OpenDocumentationOperator,
-    DS_OpenRenderFolderOperator,
-    DS_SceneRenderAnimationOperator,
-    DS_SceneRenderFrameOperator,
+    DS_OpenOutputFolderOperator,
+    DS_SceneRenderExistingOutputOperator,
+    DS_SceneRenderViewportOperator,
     DreamRenderOperator,
     DreamStateOperator,
 )
@@ -44,19 +48,20 @@ class PanelSectionImageEditor:
     bl_category = DS_CATEGORY
 
 
-def render_in_progress_view(layout):
+def render_in_progress_view(layout, ui_context: UIContext):
+    init_source = get_init_source()
     state_text = (
         "Rendering..."
         if DreamStateOperator.render_state == RenderState.RENDERING
         else "Diffusing...".format(DreamStateOperator.current_frame_idx)
     )
-    if DreamStateOperator.render_context == RenderContext.ANIMATION:
-        state_text += " Frame {}/{}".format(
-            DreamStateOperator.current_frame_idx, DreamStateOperator.total_frame_count
-        )
     if DreamStateOperator.render_start_time:
         state_text += " ({}s)".format(
             round(time.time() - DreamStateOperator.render_start_time, 1)
+        )
+    if init_source == InitSource.EXISTING_VIDEO and ui_context == UIContext.SCENE_VIEW:
+        state_text += " (frame {} / {})".format(
+            DreamStateOperator.current_frame_idx, DreamStateOperator.total_frame_count
         )
     layout.label(text=state_text)
     cancel_text = (
@@ -132,16 +137,12 @@ class DreamStudioImageEditorPanel(PanelSectionImageEditor, Panel):
             return
 
         if DreamStateOperator.render_state != RenderState.IDLE:
-            render_in_progress_view(layout)
+            render_in_progress_view(layout, UIContext.IMAGE_EDITOR)
             return
-
-        valid = render_validation(layout, settings, scene, UIContext.IMAGE_EDITOR)
 
         render_prompt_list(context.scene, layout)
 
-        dream_row = layout.row()
-        dream_row.operator(DreamRenderOperator.bl_idname, text="Dream (Texture)")
-        dream_row.enabled = valid
+        render_dream_row(layout, settings, scene, UIContext.IMAGE_EDITOR)
         render_links_row(layout)
 
 
@@ -172,71 +173,126 @@ class DreamStudio3DPanel(Panel):
             return
 
         if DreamStateOperator.render_state != RenderState.IDLE:
-            render_in_progress_view(layout)
+            render_in_progress_view(layout, UIContext.SCENE_VIEW)
             return
 
-        valid = render_validation(layout, settings, scene, UIContext.SCENE_VIEW)
         render_prompt_list(scene, layout)
 
-        row = layout.row()
-        row.scale_y = 2.0
-        row.operator(
-            DS_SceneRenderAnimationOperator.bl_idname, text="Dream (Animation)"
-        )
-        row.operator(DS_SceneRenderFrameOperator.bl_idname, text="Dream (Frame)")
-        row.enabled = valid
+        render_dream_row(layout, settings, scene, UIContext.SCENE_VIEW)
         render_links_row(layout)
+
+
+def render_dream_row(layout, settings, scene, ui_context: UIContext):
+    dream_row = layout.row()
+    dream_row.scale_y = 2.0
+    valid = render_validation(layout, settings, scene, ui_context)
+    if ui_context == UIContext.IMAGE_EDITOR:
+        dream_row.operator(
+            DS_SceneRenderExistingOutputOperator.bl_idname, text="Dream (Image Editor)"
+        )
+        dream_row.enabled = valid == ValidationState.VALID
+    else:
+        viewport_col = dream_row.column()
+        viewport_col.operator(
+            DS_SceneRenderViewportOperator.bl_idname, text="Dream (Viewport)"
+        )
+        viewport_col.enabled = valid in (
+            ValidationState.VALID,
+            ValidationState.RENDER_SETTINGS,
+        )
+        render_col = dream_row.column()
+        render_col.operator(
+            DS_SceneRenderExistingOutputOperator.bl_idname, text="Dream (Last Render)"
+        )
+        render_col.enabled = valid == ValidationState.VALID
 
 
 # Validation messages should be no longer than 50 chars or so.
 def validate_settings(
-    settings, scene, ui_render_context: UIContext
-) -> tuple[bool, str]:
+    settings, scene, ui_context: UIContext, init_source: InitSource
+) -> tuple[ValidationState, str]:
     width, height = get_init_image_dimensions(settings, scene)
     prompts = scene.prompt_list
     # cannot be > 1 megapixel
-    init_source = InitSource[settings.init_source]
-    if init_source != InitSource.NONE:
-        if (
-            ui_render_context == UIContext.IMAGE_EDITOR
-            and init_source == InitSource.SCENE_RENDER
-        ):
-            return False, "Rendering to image editor is not supported."
-        if (
-            ui_render_context == UIContext.SCENE_VIEW
-            and init_source == InitSource.CURRENT_TEXTURE
-        ):
-            return False, "Rendering from image editor is not supported."
+    init_source = get_init_source()
+    if init_source != InitSource.TEXT:
         if width * height > 1_000_000:
-            return False, "Init image size cannot be greater than 1 megapixel."
+            return (
+                ValidationState.RENDER_SETTINGS,
+                "Init image size cannot be greater than 1 megapixel.",
+            )
 
-        if not prompts or len(prompts) < 1:
-            return False, "Add at least one prompt to the prompt list."
+    if not prompts or len(prompts) < 1:
+        return False, "Add at least one prompt to the prompt list."
 
-    if not prompts[0] or prompts[0].prompt == "":
-        return False, "Enter a prompt."
+    if settings.image_editor_use_init and ui_context == UIContext.IMAGE_EDITOR or DreamStateOperator.rendering_from_texture:
+        context = bpy.context
+        img = context.space_data.image
+        if not img:
+            return ValidationState.RENDER_SETTINGS, "No image loaded in the image editor."
 
-    if prompts[0] and prompts[0].prompt and len(prompts[0].prompt) > 500:
-        return False, "Enter a prompt."
+    if init_source in (InitSource.EXISTING_VIDEO, InitSource.EXISTING_IMAGE):
+        render_file_type = scene.render.image_settings.file_format
+        if render_file_type not in SUPPORTED_RENDER_FILE_TYPES:
+            return ValidationState.RENDER_SETTINGS, (
+                f"Unsupported render file type: {render_file_type}. Supported types: {SUPPORTED_RENDER_FILE_TYPES}"
+            )
 
-    return True, ""
+    render_file_path = scene.render.filepath
+    render_file_type = scene.render.image_settings.file_format
+    if init_source == InitSource.EXISTING_IMAGE:
+
+        if not os.path.exists(render_file_path):
+            return (
+                ValidationState.RENDER_SETTINGS,
+                "Input image does not exist. Check the Blender output settings, or render your image.",
+            )
+
+    if init_source == InitSource.EXISTING_VIDEO:
+
+        render_dir = os.path.dirname(render_file_path)
+
+        # filepath is a directory in this case
+        if not os.path.isdir(render_dir):
+            return (
+                ValidationState.RENDER_SETTINGS,
+                "Input directory is not valid.",
+            )
+
+        search_glob = os.path.join(render_dir, f"*.{render_file_type.lower()}")
+        files_in_dir = glob(search_glob)
+        if len(files_in_dir) == 0:
+            return (
+                ValidationState.RENDER_SETTINGS,
+                "No frames found in the input directory.",
+            )
+
+    for p in prompts:
+        if not p or p.prompt == "":
+            return ValidationState.DS_SETTINGS, "Enter a prompt."
+
+        if p and p.prompt and len(p.prompt) > 500:
+            return ValidationState.DS_SETTINGS, "Enter a prompt."
+
+    return ValidationState.VALID, ""
 
 
 def render_validation(layout, settings, scene, ui_context: UIContext):
-    re_render: bool = settings.re_render
-    init_source = InitSource[settings.init_source]
-    valid, validation_msg = validate_settings(settings, scene, ui_context)
-    if not valid:
+    init_source = get_init_source()
+    valid_state, validation_msg = validate_settings(
+        settings, scene, ui_context, init_source
+    )
+    if valid_state != ValidationState.VALID:
         layout.label(text=validation_msg, icon="ERROR")
     else:
-        if re_render and init_source == InitSource.SCENE_RENDER:
+        if init_source == InitSource.VIEWPORT:
             layout.label(
-                text="Ready! Scene will render first, this will lock Blender.",
+                text="Ready! Rendering from viewport.",
                 icon="CHECKMARK",
             )
         else:
             layout.label(text="Ready!", icon="CHECKMARK")
-    return valid
+    return valid_state
 
 
 # Individual panel sections are added by setting bl_parent_id
@@ -257,7 +313,7 @@ class RenderOptionsPanelSectionImageEditor(PanelSectionImageEditor, Panel):
 class RenderOptionsPanelSection3DEditor(PanelSection3D, Panel):
 
     bl_parent_id = DreamStudio3DPanel.bl_idname
-    bl_label = "3D View Options"
+    bl_label = "Render Options"
 
     def draw(self, context):
         draw_render_options_panel(self, context, UIContext.SCENE_VIEW)
@@ -326,16 +382,22 @@ def draw_render_options_panel(self, context, ui_context: UIContext):
     layout = self.layout
     settings = context.scene.ds_settings
     use_custom_res = not settings.use_render_resolution
-    init_source = InitSource[settings.init_source]
+    init_source = get_init_source()
     if DreamStateOperator.render_state == RenderState.ONBOARDING:
         return
-    layout.prop(settings, "init_source")
-    if init_source != InitSource.NONE:
+
+    if ui_context == UIContext.IMAGE_EDITOR:
+        layout.prop(settings, "image_editor_use_init")
+    else:
+        layout.prop(settings, "init_source")
+
+    if (ui_context == UIContext.SCENE_VIEW and init_source != InitSource.TEXT) or (
+        ui_context == UIContext.IMAGE_EDITOR and settings.image_editor_use_init
+    ):
         layout.prop(settings, "init_strength")
 
     use_resolution_label = "Use Render Resolution"
-    if ui_context == UIContext.SCENE_VIEW:
-        layout.prop(settings, "re_render")
+    if ui_context == UIContext.IMAGE_EDITOR:
         use_resolution_label = "Use Texture Resolution"
     layout.prop(settings, "use_render_resolution", text=use_resolution_label)
     image_size_row = layout.row()
@@ -345,4 +407,4 @@ def draw_render_options_panel(self, context, ui_context: UIContext):
 
     render_output_location_row(layout, settings)
 
-    layout.operator(DS_OpenRenderFolderOperator.bl_idname, text="Open Output Folder")
+    layout.operator(DS_OpenOutputFolderOperator.bl_idname, text="Open Output Folder")

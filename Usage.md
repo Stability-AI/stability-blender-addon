@@ -10,15 +10,15 @@ To start, select the DreamStudio panel in the 3D View. You will see the followin
 
 ![](/content/3D_view_default.png)
 
-To make things easy, uncheck the 'Use Render Resolution' toggle under '3D View Options', and set the 'Height' and 'Width' to 512. Then, press the 'Add' button on top of the Prompts list. This will add an empty prompt to the list - try using `A dream of a distant galaxy, concept art, matte painting, HQ, 4k`.
+To start, press the 'Add' button on top of the Prompts list. This will add an empty prompt to the list - try using `A dream of a distant galaxy, concept art, matte painting, HQ, 4k`. You can click on 'DreamStudio Options' and 'Render Options' to toggle the panels for options relevant to diffusion and Blender, respectively.
 
 Your UI should look like this:
 
 ![](/content/3D_view_ready.png)
 
-Now, to render. Click 'Dream (Frame)' and Blender will render a single frame, then send the frame to the Stability API. When the API finishes processing your image, the result will be displayed in a pop-up window.
+Now, to render. Click 'Dream (Viewport)' and Blender will render your current viewport view, then send the frame to the Stability API. When the API finishes processing your image, the result will be displayed in a pop-up window. When you click 'Dream (Last Render)', the addon will look at the current output path in 'Output Properties' in Blender, and send the image rendered there to the API. When the API finishes processing your image, the result will be displayed in a pop-up window.
 
-From here, try changing the prompt, adding multiple prompts, playing with the DreamStudio options, or the Blender render settings, and see what happens! You can also render your whole animation range with the 'Dream (Animation)' button. All parameters can also be automated - try changing the prompt strength over time to get some neat effects.
+From here, try changing the prompt, adding multiple prompts, playing with the DreamStudio options, or the Blender render settings, and see what happens! You can set the 'Init Source' property in the 'Render Options' panel to 'Rendered Video Frames' to use a folder of video frames, as well. All parameters can also be automated - try changing the prompt strength over time to get some neat effects.
 
 ## How to use the Image Editor Mode
 

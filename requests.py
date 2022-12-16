@@ -124,7 +124,7 @@ def render_img2img_grpc(input_file_location, output_file_location, args):
     return 500, "No image returned from server"
 
 
-def render_text2img(output_file_location, args):
+def render_text2img(output_file_directory, args):
 
     log_sentry_event(TrackingEvent.TEXT2IMG)
     log_analytics_event(TrackingEvent.TEXT2IMG)
@@ -158,7 +158,7 @@ def render_text2img(output_file_location, args):
 
     if response.status_code in (200, 201):
         res_img = response.content
-        with open(output_file_location, "wb") as res_img_file:
+        with open(output_file_directory + "/result.png", "wb") as res_img_file:
             res_img_file.write(res_img)
     else:
         res_body = response.json()

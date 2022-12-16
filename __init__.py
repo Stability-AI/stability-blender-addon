@@ -13,9 +13,9 @@ from .operators import (
     DS_LogIssueOperator,
     DS_FinishOnboardingOperator,
     DS_OpenDocumentationOperator,
-    DS_OpenRenderFolderOperator,
-    DS_SceneRenderAnimationOperator,
-    DS_SceneRenderFrameOperator,
+    DS_OpenOutputFolderOperator,
+    DS_SceneRenderExistingOutputOperator,
+    DS_SceneRenderViewportOperator,
     DreamStateOperator,
     DS_CancelRenderOperator,
     DS_ContinueRenderOperator,
@@ -38,7 +38,7 @@ from .data import (
     OUTPUT_LOCATIONS,
     APIType,
     Engine,
-    OutputLocation,
+    InitSource,
     Sampler,
     engine_to_blender_enum,
     enum_to_blender_enum,
@@ -46,7 +46,6 @@ from .data import (
     initialize_sentry,
 )
 from .prompt_list import (
-    MULTIPROMPT_ENABLED,
     PromptList_NewItem,
     PromptList_RemoveItem,
     PromptListItem,
@@ -129,8 +128,6 @@ class DreamStudioSettings(bpy.types.PropertyGroup):
         description="The seed fixes which random numbers are used for the diffusion process. This allows you to reproduce the same results for the same input frame. May also help with consistency across frames if you are rendering an animation",
     )
 
-    # Render output settings
-    re_render: BoolProperty(name="Re-Render Scene", default=True)
     use_render_resolution: BoolProperty(
         name="Use Render Resolution",
         default=False,
@@ -149,24 +146,21 @@ class DreamStudioSettings(bpy.types.PropertyGroup):
         description="The width of the image that is sent to the model. The rendered frame will be scaled to this size",
     )
 
-    # 3D View settings
-    re_render: BoolProperty(
-        name="Re-Render",
-        default=True,
-        description="Whether to re-render the scene before sending it to the model. If unchecked, the model will use the last rendered frame or set of frames",
-    )
-
     # Output settings
     init_source: EnumProperty(
         name="Init Source",
         items=INIT_SOURCES,
-        default=2,
+        default=InitSource.EXISTING_IMAGE.value,
         description="The source of the initial image. Select Scene Render to render the current frame and use that render as the init image, or select Image Editor to use the currently open image in the image editor as the init image. Select None to just use the prompt text to generate the image",
+    )
+    image_editor_use_init: BoolProperty(
+        name="Use Init Image",
+        default=True,
+        description="Use the currently open image in the image editor as the init image. If unchecked, just use text",
     )
     output_location: EnumProperty(
         name="Open Result In",
         items=OUTPUT_LOCATIONS,
-        default=OutputLocation.CURRENT_TEXTURE.name,
         description="The location to save the output image. The default is to open the result as a new image in the image editor. The other options are to output the images to the file system, and open the explorer to the image when diffusion is complete, or replace the existing image in the image editor.",
     )
 
@@ -177,7 +171,8 @@ class DreamStudioSettings(bpy.types.PropertyGroup):
 class DreamStudioPreferences(AddonPreferences):
     bl_idname = __package__
 
-    api_key: StringProperty(name="API Key", default="")
+    # TODO revert
+    api_key: StringProperty(name="API Key", default="sk-Yc1fipqiDj98UVwEvVTP6OPgQmRk8cFRUSx79K9D3qCiNAFy")
 
     record_analytics: BoolProperty(
         name="Record anonymous telemetry data",
@@ -261,8 +256,8 @@ registered_operators = [
     DreamStudioImageEditorPanel,
     DS_CancelRenderOperator,
     DS_ContinueRenderOperator,
-    DS_SceneRenderAnimationOperator,
-    DS_SceneRenderFrameOperator,
+    DS_SceneRenderExistingOutputOperator,
+    DS_SceneRenderViewportOperator,
     DreamStateOperator,
     DreamStudio3DPanel,
     AdvancedOptionsPanelSection3DEditor,
@@ -271,7 +266,7 @@ registered_operators = [
     RenderOptionsPanelSectionImageEditor,
     DS_FinishOnboardingOperator,
     DS_GetAPIKeyOperator,
-    DS_OpenRenderFolderOperator
+    DS_OpenOutputFolderOperator
 ]
 
 

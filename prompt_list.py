@@ -7,7 +7,7 @@ MULTIPROMPT_ENABLED = True
 
 class PromptListItem(PropertyGroup):
     prompt: StringProperty(name="Prompt", default="")
-    strength: FloatProperty(name="Strength", default=1, min=0, max=1)
+    strength: FloatProperty(name="Strength", default=1, min=-1, max=1)
 
 
 class PromptListUIItem(UILayout):
@@ -40,7 +40,6 @@ class PromptList_RemoveItem(Operator):
     index: IntProperty()
 
     def execute(self, context):
-        print(self.index)
         context.scene.prompt_list.remove(self.index)
 
         return {"FINISHED"}
