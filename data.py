@@ -192,6 +192,11 @@ engine_enum_to_name = {
 }
 
 
+class ValidationState(Enum):
+    VALID = 1
+    DS_SETTINGS = 2
+    RENDER_SETTINGS = 3
+
 # set of configurations with a sampler / engine config for each
 # then have a method to get optimal sampler / engine config for a given resolution
 

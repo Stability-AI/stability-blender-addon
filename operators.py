@@ -70,7 +70,7 @@ def setup_render_directories():
         if dir == generated_animation_dir:
             for file in glob(os.path.join(dir, "*")):
                 os.remove(file)
-    return rendered_dir, generated_images_dir
+    return rendered_dir, generated_images_dir, generated_animation_dir
 
 
 class DS_ContinueRenderOperator(Operator):
@@ -330,7 +330,7 @@ class DreamRenderOperator(Operator):
         settings = context.scene.ds_settings
         scene = bpy.context.scene
         DreamStateOperator.kill_render_thread()
-        rendered_dir, generated_images_dir = setup_render_directories()
+        rendered_dir, generated_images_dir, generation_animation_dir = setup_render_directories()
         DreamStateOperator.rendered_images_dir = rendered_dir
         DreamStateOperator.generated_images_dir = generated_images_dir
         ui_context = DreamStateOperator.ui_context

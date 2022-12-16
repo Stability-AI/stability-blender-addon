@@ -12,6 +12,7 @@ from .data import (
     InitSource,
     RenderState,
     UIContext,
+    ValidationState,
     check_dependencies_installed,
     get_init_image_dimensions,
     get_init_source,
@@ -138,9 +139,7 @@ class DreamStudioImageEditorPanel(PanelSectionImageEditor, Panel):
 
         render_prompt_list(context.scene, layout)
 
-        dream_row = layout.row()
-        dream_row.operator(DreamRenderOperator.bl_idname, text="Dream (Texture)")
-        dream_row.enabled = valid
+        render_dream_row(layout, settings, scene, UIContext.IMAGE_EDITOR)
         render_links_row(layout)
 
 
@@ -176,28 +175,46 @@ class DreamStudio3DPanel(Panel):
 
         render_prompt_list(scene, layout)
 
-        row = layout.row()
-        row.scale_y = 2.0
-        row.operator(DS_SceneRenderViewportOperator.bl_idname, text="Dream (Viewport)")
-        row.operator(
+        render_dream_row(layout, settings, scene, UIContext.SCENE_VIEW)
+        render_links_row(layout)
+
+
+def render_dream_row(layout, settings, scene, ui_context: UIContext):
+    dream_row = layout.row()
+    dream_row.scale_y = 2.0
+    valid = render_validation(layout, settings, scene, ui_context)
+    if ui_context == UIContext.IMAGE_EDITOR:
+        dream_row.operator(
+            DS_SceneRenderExistingOutputOperator.bl_idname, text="Dream (Image Editor)"
+        )
+        dream_row.enabled = valid == ValidationState.VALID
+    else:
+        viewport_col = dream_row.column()
+        viewport_col.operator(
+            DS_SceneRenderViewportOperator.bl_idname, text="Dream (Viewport)"
+        )
+        viewport_col.enabled = valid in (ValidationState.VALID, ValidationState.RENDER_SETTINGS)
+        render_col = dream_row.column()
+        render_col.operator(
             DS_SceneRenderExistingOutputOperator.bl_idname, text="Dream (Last Render)"
         )
-        valid = render_validation(layout, settings, scene, UIContext.SCENE_VIEW)
-        row.enabled = valid
-        render_links_row(layout)
+        render_col.enabled = valid == ValidationState.VALID
 
 
 # Validation messages should be no longer than 50 chars or so.
 def validate_settings(
     settings, scene, ui_context: UIContext, init_source: InitSource
-) -> tuple[bool, str]:
+) -> tuple[ValidationState, str]:
     width, height = get_init_image_dimensions(settings, scene)
     prompts = scene.prompt_list
     # cannot be > 1 megapixel
     init_source = get_init_source()
     if init_source != InitSource.TEXT:
         if width * height > 1_000_000:
-            return False, "Init image size cannot be greater than 1 megapixel."
+            return (
+                ValidationState.RENDER_SETTINGS,
+                "Init image size cannot be greater than 1 megapixel.",
+            )
 
     if not prompts or len(prompts) < 1:
         return False, "Add at least one prompt to the prompt list."
@@ -205,7 +222,7 @@ def validate_settings(
     if init_source in (InitSource.EXISTING_VIDEO, InitSource.EXISTING_IMAGE):
         render_file_type = scene.render.image_settings.file_format
         if render_file_type not in SUPPORTED_RENDER_FILE_TYPES:
-            raise Exception(
+            return ValidationState.RENDER_SETTINGS, (
                 f"Unsupported render file type: {render_file_type}. Supported types: {SUPPORTED_RENDER_FILE_TYPES}"
             )
 
@@ -215,7 +232,7 @@ def validate_settings(
 
         if not os.path.exists(render_file_path):
             return (
-                False,
+                ValidationState.RENDER_SETTINGS,
                 "Input image does not exist. Check the Blender output settings, or render your image.",
             )
 
@@ -226,31 +243,35 @@ def validate_settings(
         # filepath is a directory in this case
         if not os.path.isdir(render_dir):
             return (
-                False,
+                ValidationState.RENDER_SETTINGS,
                 "Input directory is not valid.",
             )
 
-        files_in_dir = glob(os.path.join(render_file_path, f"*.{render_file_type.lower()}"))
+        files_in_dir = glob(
+            os.path.join(render_file_path, f"*.{render_file_type.lower()}")
+        )
         if len(files_in_dir) == 0:
             return (
-                False,
+                ValidationState.RENDER_SETTINGS,
                 "No frames found in the input directory.",
             )
 
     for p in prompts:
         if not p or p.prompt == "":
-            return False, "Enter a prompt."
+            return ValidationState.DS_SETTINGS, "Enter a prompt."
 
         if p and p.prompt and len(p.prompt) > 500:
-            return False, "Enter a prompt."
+            return ValidationState.DS_SETTINGS, "Enter a prompt."
 
-    return True, ""
+    return ValidationState.VALID, ""
 
 
 def render_validation(layout, settings, scene, ui_context: UIContext):
     init_source = get_init_source()
-    valid, validation_msg = validate_settings(settings, scene, ui_context, init_source)
-    if not valid:
+    valid_state, validation_msg = validate_settings(
+        settings, scene, ui_context, init_source
+    )
+    if valid_state != ValidationState.VALID:
         layout.label(text=validation_msg, icon="ERROR")
     else:
         if init_source == InitSource.VIEWPORT:
@@ -260,7 +281,7 @@ def render_validation(layout, settings, scene, ui_context: UIContext):
             )
         else:
             layout.label(text="Ready!", icon="CHECKMARK")
-    return valid
+    return valid_state
 
 
 # Individual panel sections are added by setting bl_parent_id
