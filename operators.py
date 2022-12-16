@@ -35,7 +35,6 @@ from .data import (
     get_preferences,
     initialize_sentry,
     log_sentry_event,
-    set_init_source,
 )
 from .dependencies import install_dependencies, check_dependencies_installed
 from .requests import log_analytics_event, render_img2img, render_text2img
@@ -60,17 +59,14 @@ def open_folder(dir: str):
 # as well as any platform specific info.
 def setup_render_directories():
     dreamstudio_dir = os.path.join(tempfile.gettempdir(), "dreamstudio")
+    rendered_dir = os.path.join(dreamstudio_dir, "rendered")
     generated_images_dir = os.path.join(dreamstudio_dir, "generated_images")
-    generated_animation_dir = os.path.join(dreamstudio_dir, "generated_animation")
-    for dir in [dreamstudio_dir, generated_images_dir, generated_animation_dir]:
+    for dir in [dreamstudio_dir, generated_images_dir, rendered_dir]:
         if not os.path.exists(dir):
             os.mkdir(dir)
-        if dir == generated_animation_dir:
-            files = glob(f"{dir}/*")
-            for f in files:
-                if not os.path.isdir(f):
-                    os.remove(f)
-    return dreamstudio_dir, generated_images_dir, generated_animation_dir
+        if not os.access(dir, os.W_OK):
+            raise Exception(f"Directory {dir} is not writable. Please check your Blender application permissions.")
+    return rendered_dir, generated_images_dir
 
 
 class DS_ContinueRenderOperator(Operator):
@@ -102,13 +98,13 @@ class DS_CancelRenderOperator(Operator):
 class DS_SceneRenderViewportOperator(Operator):
     """Render the current frame, then send to Stability SDK for diffusion"""
 
-    bl_idname = "dreamstudio.render_viewpoer"
+    bl_idname = "dreamstudio.render_viewport"
     bl_label = "Cancel"
 
     def execute(self, context):
         DreamStateOperator.ui_context = UIContext.SCENE_VIEW
         DreamStateOperator.render_state = RenderState.RENDERING
-        set_init_source(InitSource.VIEWPORT)
+        DreamStateOperator.rendering_from_viewport = True
         DreamStateOperator.render_start_time = time.time()
         bpy.ops.dreamstudio.dream_render_operator()
         return {"FINISHED"}
@@ -167,8 +163,9 @@ class GeneratorWorker(Thread):
         args = format_rest_args(settings, scene.prompt_list)
 
         DreamStateOperator.render_state = RenderState.DIFFUSING
-        output_file_path = os.path.join(DreamStateOperator.results_dir, "result.png")
+        output_file_path = os.path.join(self.output_img_directory, "result.png")
         init_image_width, init_image_height = get_init_image_dimensions(settings, scene)
+        init_img_path = self.input_img_paths[0]
 
         # text2img mode
         if self.init_source == InitSource.TEXT:
@@ -178,18 +175,18 @@ class GeneratorWorker(Thread):
             return
 
         # img2img mode - image editor, which can only generate from textures and text
-        if self.init_source == InitSource.TEXTURE:
+        if self.init_source == InitSource.EXISTING_IMAGE:
             DreamStateOperator.render_state = RenderState.DIFFUSING
-            if not os.path.exists(DreamStateOperator.init_img_path):
+            if not os.path.exists(init_img_path):
                 DreamStateOperator.reset_render_state()
                 DreamStateOperator.kill_render_thread()
                 raise Exception(
                     "No image found at {}. Does the texture exist?".format(
-                        DreamStateOperator.init_img_path
+                        init_img_path
                     )
                 )
             status, reason = render_img2img(
-                DreamStateOperator.init_img_path, output_file_path, args
+                init_img_path, output_file_path, args
             )
             if status != 200:
                 raise Exception("Error generating image: {} {}".format(status, reason))
@@ -202,7 +199,7 @@ class GeneratorWorker(Thread):
             if not os.path.exists(input_img_path):
                 raise Exception(
                     "No image found at {}. Was the scene rendered, or is re-render disabled?".format(
-                        DreamStateOperator.init_img_path
+                        init_img_path
                     )
                 )
             status, reason = render_img2img(input_img_path, output_file_path, args)
@@ -226,7 +223,7 @@ class GeneratorWorker(Thread):
                 DreamStateOperator.render_start_time = time.time()
                 args = format_rest_args(settings, scene.prompt_list)
                 output_file_path = os.path.join(
-                    DreamStateOperator.results_dir, f"result_{i}.png"
+                    DreamStateOperator.rendered_images_dir, f"result_{i}.png"
                 )
                 rendered_image = bpy.data.images.load(frame_img_file)
                 rendered_image.scale(init_image_width, init_image_height)
@@ -244,6 +241,7 @@ class GeneratorWorker(Thread):
                     )
             scene.frame_set(0)
 
+        DreamStateOperator.rendering_from_viewport = False
         DreamStateOperator.render_state = RenderState.FINISHED
 
 
@@ -291,7 +289,7 @@ class DreamRenderOperator(Operator):
                 output_location == OutputDisplayLocation.FILE_SYSTEM
                 or ui_context == UIContext.SCENE_VIEW
             ):
-                open_folder(DreamStateOperator.results_dir)
+                open_folder(DreamStateOperator.rendered_images_dir)
             DreamStateOperator.render_state = RenderState.IDLE
 
         if DreamStateOperator.render_state == RenderState.IDLE:
@@ -319,61 +317,69 @@ class DreamRenderOperator(Operator):
         settings = context.scene.ds_settings
         scene = bpy.context.scene
         DreamStateOperator.kill_render_thread()
-        src_dir, res_img_dir, gen_anim_dir = setup_render_directories()
-        DreamStateOperator.results_dir = res_img_dir
-        DreamStateOperator.diffusion_output_path = res_img_dir
-        ui_context = (DreamStateOperator.ui_context,)
-        init_source = get_init_source(DreamStateOperator.ui_context)
+        rendered_dir, generated_images_dir = setup_render_directories()
+        DreamStateOperator.rendered_images_dir = rendered_dir
+        DreamStateOperator.generated_images_dir = generated_images_dir
+        ui_context = DreamStateOperator.ui_context
+        init_source = get_init_source()
         if context.area.type == "IMAGE_EDITOR":
             ui_context = UIContext.IMAGE_EDITOR
 
-        DreamStateOperator.init_img_path = os.path.join(src_dir, 'init.png')
+        init_img_path = rendered_dir + "/init.png"
 
         init_image_width, init_image_height = get_init_image_dimensions(settings, scene)
+        render_file_path = scene.render.filepath
+        render_file_type = scene.render.image_settings.file_format
+        rendered_frames = []
+
+        if DreamStateOperator.rendering_from_viewport:
+            init_source = InitSource.VIEWPORT
 
         # If we are in the image editor, we need to save the image to a temporary file to use for init
-        if init_source == InitSource.EXISTING_TEXTURE:
+        if ui_context == UIContext.IMAGE_EDITOR and init_source == InitSource.EXISTING_IMAGE:
             img = context.space_data.image
             if not img:
                 raise Exception("No image selected")
             init_image = copy_image(img)
             init_image.scale(init_image_width, init_image_height)
-            init_image.save_render(DreamStateOperator.init_img_path)
+            init_image.save_render(init_img_path)
+            rendered_frames = [init_img_path]
 
-        rendered_frame_image_paths = []
         # Render 3D view
         if init_source == InitSource.VIEWPORT:
-            render_path = scene.render.filepath
-            render_file_type = scene.render.image_settings.file_format
 
-            scene.render.filepath = DreamStateOperator.init_img_path
+            scene.render.filepath = init_img_path
+            workspace = bpy.context.workspace.name
+            # tmp_show_overlay = bpy.data.screens[workspace].overlay.show_overlays
+            # bpy.data.screens[workspace].overlay.show_overlays = False
 
             tmp_w, tmp_h = scene.render.resolution_x, scene.render.resolution_y
             scene.render.resolution_x = init_image_width
             scene.render.resolution_y = init_image_height
             res = bpy.ops.render.opengl(
-                write_still=True, animation=False, view_context=False
+                write_still=True, animation=False, view_context=True
             )
             scene.render.resolution_x = tmp_w
             scene.render.resolution_y = tmp_h
+            # bpy.data.screens[workspace].overlay.show_overlays = tmp_show_overlay
 
-            rendered_frame_image_paths = [render_path]
+            rendered_frames = [init_img_path]
 
             if res != {"FINISHED"}:
                 raise Exception("Failed to render: {}".format(res))
         elif init_source == InitSource.EXISTING_VIDEO:
-            render_file_type = scene.render.image_settings.file_format
+            render_directory = os.path.dirname(render_file_path)
             frames_glob = os.path.join(
-                src_dir,
+                render_directory,
                 "*.{}".format(render_file_type.lower()),
             )
-            rendered_frame_image_paths = glob(frames_glob)
+            rendered_frames = glob(frames_glob)
         DreamStateOperator.generator_thread = GeneratorWorker(
             scene,
             context,
             ui_context,
-            input_img_paths=rendered_frame_image_paths,
-            output_img_directory=DreamStateOperator.diffusion_output_path,
+            input_img_paths=rendered_frames,
+            output_img_directory=generated_images_dir,
             init_source=init_source,
         )
         DreamStateOperator.generator_thread.start()
@@ -395,9 +401,11 @@ class DreamStateOperator(Operator):
     current_frame_idx = 0
     total_frame_count = 0
     generator_thread: Thread = None
-    diffusion_output_path = None
-    init_img_path = None
-    results_dir = None
+    rendering_from_viewport = False
+    # Where we put images that are generated after the diffusion step.
+    generated_images_dir = None
+    # Where we put images that are rendered by the addon.
+    rendered_images_dir = None
     render_start_time: float = None
 
     sentry_initialized = False

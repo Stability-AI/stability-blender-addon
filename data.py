@@ -102,8 +102,7 @@ class InitSource(Enum):
     # From an animation that is already on disk.
     EXISTING_VIDEO = 3
     # From a texture that is already on disk.
-    EXISTING_TEXTURE = 4
-    VIEWPORT = 5
+    VIEWPORT = 4
 
 
 # Which UI element are we operating from?
@@ -119,7 +118,7 @@ class OutputDisplayLocation(Enum):
 
 
 # Used to display the init source property in the UI
-INIT_SOURCES_SCENE_VIEW = [
+INIT_SOURCES = [
     (InitSource.TEXT.name, "Text Prompt Only", "", InitSource.TEXT.value),
     (
         InitSource.EXISTING_IMAGE.name,
@@ -134,18 +133,6 @@ INIT_SOURCES_SCENE_VIEW = [
         InitSource.EXISTING_VIDEO.value,
     ),
 ]
-
-# Used to display the init source property in the UI
-INIT_SOURCES_IMAGE_EDITOR = [
-    (InitSource.TEXT.name, "Text Prompt Only", "", InitSource.TEXT.value),
-    (
-        InitSource.EXISTING_TEXTURE.name,
-        "Texture",
-        "",
-        InitSource.EXISTING_TEXTURE.value,
-    ),
-]
-
 
 # where to send the resulting texture
 OUTPUT_LOCATIONS = [
@@ -326,17 +313,6 @@ def get_preferences():
         return None
     return bpy.context.preferences.addons[__package__].preferences
 
-def get_init_source(ui_context: UIContext) -> InitSource:
+def get_init_source() -> InitSource:
     settings = bpy.context.scene.ds_settings
-    if ui_context == UIContext.IMAGE_EDITOR:
-        init_source = InitSource[settings.init_source_image_editor]
-    else:
-        init_source = InitSource[settings.init_source_scene_view]
-    return init_source
-
-def set_init_source(ui_context: UIContext, init_source: InitSource):
-    settings = bpy.context.scene.ds_settings
-    if ui_context == UIContext.IMAGE_EDITOR:
-        settings.init_source_image_editor = init_source.name
-    else:
-        settings.init_source_scene_view = init_source.name
+    return InitSource[settings.init_source]

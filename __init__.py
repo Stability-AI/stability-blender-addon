@@ -34,8 +34,7 @@ from . import addon_updater_ops
 from .dependencies import check_dependencies_installed
 
 from .data import (
-    INIT_SOURCES_IMAGE_EDITOR,
-    INIT_SOURCES_SCENE_VIEW,
+    INIT_SOURCES,
     OUTPUT_LOCATIONS,
     APIType,
     Engine,
@@ -148,16 +147,10 @@ class DreamStudioSettings(bpy.types.PropertyGroup):
     )
 
     # Output settings
-    init_source_scene_view: EnumProperty(
+    init_source: EnumProperty(
         name="Init Source",
-        items=INIT_SOURCES_SCENE_VIEW,
+        items=INIT_SOURCES,
         default=InitSource.EXISTING_IMAGE.value,
-        description="The source of the initial image. Select Scene Render to render the current frame and use that render as the init image, or select Image Editor to use the currently open image in the image editor as the init image. Select None to just use the prompt text to generate the image",
-    )
-    init_source_image_editor: EnumProperty(
-        name="Init Source",
-        items=INIT_SOURCES_IMAGE_EDITOR,
-        default=InitSource.EXISTING_TEXTURE.value,
         description="The source of the initial image. Select Scene Render to render the current frame and use that render as the init image, or select Image Editor to use the currently open image in the image editor as the init image. Select None to just use the prompt text to generate the image",
     )
     output_location: EnumProperty(

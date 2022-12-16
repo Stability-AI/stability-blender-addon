@@ -176,8 +176,8 @@ class DreamStudio3DPanel(Panel):
 
         row = layout.row()
         row.scale_y = 2.0
-        row.operator(DS_SceneRenderExistingOutputOperator.bl_idname, text="Dream (Viewport)")
-        row.operator(DS_SceneRenderViewportOperator.bl_idname, text="Dream (Render)")
+        row.operator(DS_SceneRenderViewportOperator.bl_idname, text="Dream (Viewport)")
+        row.operator(DS_SceneRenderExistingOutputOperator.bl_idname, text="Dream (Render)")
         valid = render_validation(layout, settings, scene, UIContext.SCENE_VIEW)
         row.enabled = valid
         render_links_row(layout)
@@ -190,7 +190,7 @@ def validate_settings(
     width, height = get_init_image_dimensions(settings, scene)
     prompts = scene.prompt_list
     # cannot be > 1 megapixel
-    init_source = get_init_source(ui_context)
+    init_source = get_init_source()
     if init_source != InitSource.TEXT:
         if width * height > 1_000_000:
             return False, "Init image size cannot be greater than 1 megapixel."
@@ -215,7 +215,7 @@ def validate_settings(
 
 
 def render_validation(layout, settings, scene, ui_context: UIContext):
-    init_source = get_init_source(ui_context)
+    init_source = get_init_source()
     valid, validation_msg = validate_settings(settings, scene, ui_context, init_source)
     if not valid:
         layout.label(text=validation_msg, icon="ERROR")
@@ -317,15 +317,10 @@ def draw_render_options_panel(self, context, ui_context: UIContext):
     layout = self.layout
     settings = context.scene.ds_settings
     use_custom_res = not settings.use_render_resolution
-    init_source_prop = (
-        "init_source_image_editor"
-        if ui_context == UIContext.IMAGE_EDITOR
-        else "init_source_scene_view"
-    )
-    init_source = get_init_source(ui_context)
+    init_source = get_init_source()
     if DreamStateOperator.render_state == RenderState.ONBOARDING:
         return
-    layout.prop(settings, init_source_prop)
+    layout.prop(settings, "init_source")
     if init_source != InitSource.TEXT:
         layout.prop(settings, "init_strength")
 
