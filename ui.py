@@ -6,12 +6,13 @@ import time
 from .prompt_list import MULTIPROMPT_ENABLED, render_prompt_list
 
 from .data import (
+    SUPPORTED_RENDER_FILE_TYPES,
     InitSource,
-    RenderContext,
     RenderState,
     UIContext,
     check_dependencies_installed,
     get_init_image_dimensions,
+    get_init_source,
     get_preferences,
 )
 from .operators import (
@@ -21,8 +22,8 @@ from .operators import (
     DS_FinishOnboardingOperator,
     DS_OpenDocumentationOperator,
     DS_OpenRenderFolderOperator,
-    DS_SceneRenderAnimationOperator,
-    DS_SceneRenderFrameOperator,
+    DS_SceneRenderExistingOutputOperator,
+    DS_SceneRenderViewportOperator,
     DreamRenderOperator,
     DreamStateOperator,
 )
@@ -50,10 +51,6 @@ def render_in_progress_view(layout):
         if DreamStateOperator.render_state == RenderState.RENDERING
         else "Diffusing...".format(DreamStateOperator.current_frame_idx)
     )
-    if DreamStateOperator.render_context == RenderContext.ANIMATION:
-        state_text += " Frame {}/{}".format(
-            DreamStateOperator.current_frame_idx, DreamStateOperator.total_frame_count
-        )
     if DreamStateOperator.render_start_time:
         state_text += " ({}s)".format(
             round(time.time() - DreamStateOperator.render_start_time, 1)
@@ -179,10 +176,8 @@ class DreamStudio3DPanel(Panel):
 
         row = layout.row()
         row.scale_y = 2.0
-        row.operator(
-            DS_SceneRenderAnimationOperator.bl_idname, text="Dream (Animation)"
-        )
-        row.operator(DS_SceneRenderFrameOperator.bl_idname, text="Dream (Frame)")
+        row.operator(DS_SceneRenderExistingOutputOperator.bl_idname, text="Dream (Viewport)")
+        row.operator(DS_SceneRenderViewportOperator.bl_idname, text="Dream (Render)")
         valid = render_validation(layout, settings, scene, UIContext.SCENE_VIEW)
         row.enabled = valid
         render_links_row(layout)
@@ -190,33 +185,25 @@ class DreamStudio3DPanel(Panel):
 
 # Validation messages should be no longer than 50 chars or so.
 def validate_settings(
-    settings, scene, ui_context: UIContext, render_context: RenderContext
+    settings, scene, ui_context: UIContext, init_source: InitSource
 ) -> tuple[bool, str]:
     width, height = get_init_image_dimensions(settings, scene)
     prompts = scene.prompt_list
     # cannot be > 1 megapixel
-    init_source = InitSource[settings.init_source]
+    init_source = get_init_source(ui_context)
     if init_source != InitSource.TEXT:
-        if (
-            ui_context == UIContext.SCENE_VIEW
-            and init_source == InitSource.CURRENT_TEXTURE
-        ):
-            return (
-                False,
-                "Generating to the scene view from a texture is not supported.",
-            )
-        if (
-            render_context == RenderContext.ANIMATION
-            and init_source != InitSource.EXISTING_VIDEO
-        ):
-            return (False, "Animation must use an existing render as init.")
-        if (render_context == RenderContext.TEXTURE and init_source != InitSource.EXISTING_VIDEO):
-            return (False, "Texture must use an existing render as init.")
         if width * height > 1_000_000:
             return False, "Init image size cannot be greater than 1 megapixel."
 
-        if not prompts or len(prompts) < 1:
-            return False, "Add at least one prompt to the prompt list."
+    if not prompts or len(prompts) < 1:
+        return False, "Add at least one prompt to the prompt list."
+
+    if init_source in (InitSource.EXISTING_VIDEO, InitSource.EXISTING_IMAGE):
+        render_file_type = scene.render.image_settings.file_format
+        if render_file_type not in SUPPORTED_RENDER_FILE_TYPES:
+            raise Exception(
+                f"Unsupported render file type: {render_file_type}. Supported types: {SUPPORTED_RENDER_FILE_TYPES}"
+            )
 
     if not prompts[0] or prompts[0].prompt == "":
         return False, "Enter a prompt."
@@ -228,15 +215,14 @@ def validate_settings(
 
 
 def render_validation(layout, settings, scene, ui_context: UIContext):
-    re_render: bool = settings.re_render
-    init_source = InitSource[settings.init_source]
-    valid, validation_msg = validate_settings(settings, scene, ui_context)
+    init_source = get_init_source(ui_context)
+    valid, validation_msg = validate_settings(settings, scene, ui_context, init_source)
     if not valid:
         layout.label(text=validation_msg, icon="ERROR")
     else:
-        if re_render and init_source == InitSource.NEW_RENDER:
+        if init_source == InitSource.VIEWPORT:
             layout.label(
-                text="Ready! Rendering from scene view.",
+                text="Ready! Rendering from viewport.",
                 icon="CHECKMARK",
             )
         else:
@@ -331,16 +317,20 @@ def draw_render_options_panel(self, context, ui_context: UIContext):
     layout = self.layout
     settings = context.scene.ds_settings
     use_custom_res = not settings.use_render_resolution
-    init_source = InitSource[settings.init_source]
+    init_source_prop = (
+        "init_source_image_editor"
+        if ui_context == UIContext.IMAGE_EDITOR
+        else "init_source_scene_view"
+    )
+    init_source = get_init_source(ui_context)
     if DreamStateOperator.render_state == RenderState.ONBOARDING:
         return
-    layout.prop(settings, "init_source")
+    layout.prop(settings, init_source_prop)
     if init_source != InitSource.TEXT:
         layout.prop(settings, "init_strength")
 
     use_resolution_label = "Use Render Resolution"
     if ui_context == UIContext.SCENE_VIEW:
-        layout.prop(settings, "re_render")
         use_resolution_label = "Use Texture Resolution"
     layout.prop(settings, "use_render_resolution", text=use_resolution_label)
     image_size_row = layout.row()

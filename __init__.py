@@ -14,8 +14,8 @@ from .operators import (
     DS_FinishOnboardingOperator,
     DS_OpenDocumentationOperator,
     DS_OpenRenderFolderOperator,
-    DS_SceneRenderAnimationOperator,
-    DS_SceneRenderFrameOperator,
+    DS_SceneRenderExistingOutputOperator,
+    DS_SceneRenderViewportOperator,
     DreamStateOperator,
     DS_CancelRenderOperator,
     DS_ContinueRenderOperator,
@@ -34,11 +34,12 @@ from . import addon_updater_ops
 from .dependencies import check_dependencies_installed
 
 from .data import (
-    INIT_SOURCES,
+    INIT_SOURCES_IMAGE_EDITOR,
+    INIT_SOURCES_SCENE_VIEW,
     OUTPUT_LOCATIONS,
     APIType,
     Engine,
-    OutputDisplayLocation,
+    InitSource,
     Sampler,
     engine_to_blender_enum,
     enum_to_blender_enum,
@@ -46,7 +47,6 @@ from .data import (
     initialize_sentry,
 )
 from .prompt_list import (
-    MULTIPROMPT_ENABLED,
     PromptList_NewItem,
     PromptList_RemoveItem,
     PromptListItem,
@@ -148,10 +148,16 @@ class DreamStudioSettings(bpy.types.PropertyGroup):
     )
 
     # Output settings
-    init_source: EnumProperty(
+    init_source_scene_view: EnumProperty(
         name="Init Source",
-        items=INIT_SOURCES,
-        default=2,
+        items=INIT_SOURCES_SCENE_VIEW,
+        default=InitSource.EXISTING_IMAGE.value,
+        description="The source of the initial image. Select Scene Render to render the current frame and use that render as the init image, or select Image Editor to use the currently open image in the image editor as the init image. Select None to just use the prompt text to generate the image",
+    )
+    init_source_image_editor: EnumProperty(
+        name="Init Source",
+        items=INIT_SOURCES_IMAGE_EDITOR,
+        default=InitSource.EXISTING_TEXTURE.value,
         description="The source of the initial image. Select Scene Render to render the current frame and use that render as the init image, or select Image Editor to use the currently open image in the image editor as the init image. Select None to just use the prompt text to generate the image",
     )
     output_location: EnumProperty(
@@ -252,8 +258,8 @@ registered_operators = [
     DreamStudioImageEditorPanel,
     DS_CancelRenderOperator,
     DS_ContinueRenderOperator,
-    DS_SceneRenderAnimationOperator,
-    DS_SceneRenderFrameOperator,
+    DS_SceneRenderExistingOutputOperator,
+    DS_SceneRenderViewportOperator,
     DreamStateOperator,
     DreamStudio3DPanel,
     AdvancedOptionsPanelSection3DEditor,

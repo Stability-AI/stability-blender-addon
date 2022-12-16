@@ -7,9 +7,10 @@ import subprocess
 import sys
 import platform
 
-
-RENDER_PREFIX = "render_"
 from .dependencies import check_dependencies_installed, install_dependencies
+
+SUPPORTED_RENDER_FILE_TYPES = {"PNG", "JPEG", "JPG", "TGA", "BMP", "HDR", "EXR"}
+RENDER_PREFIX = "render_"
 
 # Take current state of the scene and use it to format arguments for the REST API.
 def format_rest_args(settings, prompt_list_items):
@@ -92,49 +93,67 @@ class RenderState(Enum):
     # generation is finished and we want to display the finished texture this frame
     FINISHED = 7
 
+
 # Where to grab the init image from.
 class InitSource(Enum):
     TEXT = 1
-    # From an image that is already rendered on disk.
+    # From an image that is already on disk.
     EXISTING_IMAGE = 2
-    EXISTING_ANIMATION = 3
-    RENDER_IMAGE = 4
-    NEW_RENDER = 5
+    # From an animation that is already on disk.
+    EXISTING_VIDEO = 3
+    # From a texture that is already on disk.
+    EXISTING_TEXTURE = 4
+    VIEWPORT = 5
+
 
 # Which UI element are we operating from?
 class UIContext(Enum):
     SCENE_VIEW = 1
     IMAGE_EDITOR = 2
 
+
 # What to display to the user when generation is finished
 class OutputDisplayLocation(Enum):
     TEXTURE_VIEW = 1
     FILE_SYSTEM = 2
 
+
 # Used to display the init source property in the UI
-INIT_SOURCES = [
+INIT_SOURCES_SCENE_VIEW = [
     (InitSource.TEXT.name, "Text Prompt Only", "", InitSource.TEXT.value),
     (
         InitSource.EXISTING_IMAGE.name,
-        "Camera View (Render)",
+        "Rendered Image",
         "",
-        InitSource.NEW_RENDER.value,
+        InitSource.EXISTING_IMAGE.value,
     ),
     (
         InitSource.EXISTING_VIDEO.name,
-        "Existing Rendered Output",
+        "Rendered Video",
         "",
         InitSource.EXISTING_VIDEO.value,
     ),
 ]
 
+# Used to display the init source property in the UI
+INIT_SOURCES_IMAGE_EDITOR = [
+    (InitSource.TEXT.name, "Text Prompt Only", "", InitSource.TEXT.value),
+    (
+        InitSource.EXISTING_TEXTURE.name,
+        "Texture",
+        "",
+        InitSource.EXISTING_TEXTURE.value,
+    ),
+]
+
+
 # where to send the resulting texture
 OUTPUT_LOCATIONS = [
     (
-        OutputDisplayLocation.NEW_TEXTURE.name,
+        OutputDisplayLocation.TEXTURE_VIEW.name,
         "Texture View",
         "",
-        OutputDisplayLocation.NEW_TEXTURE.value,
+        OutputDisplayLocation.TEXTURE_VIEW.value,
     ),
     (
         OutputDisplayLocation.FILE_SYSTEM.name,
@@ -143,6 +162,8 @@ OUTPUT_LOCATIONS = [
         OutputDisplayLocation.FILE_SYSTEM.value,
     ),
 ]
+
+
 class Sampler(Enum):
     K_EULER = 1
     K_DPM_2 = 2
@@ -304,3 +325,18 @@ def get_preferences():
     if __package__ not in all_addons:
         return None
     return bpy.context.preferences.addons[__package__].preferences
+
+def get_init_source(ui_context: UIContext) -> InitSource:
+    settings = bpy.context.scene.ds_settings
+    if ui_context == UIContext.IMAGE_EDITOR:
+        init_source = InitSource[settings.init_source_image_editor]
+    else:
+        init_source = InitSource[settings.init_source_scene_view]
+    return init_source
+
+def set_init_source(ui_context: UIContext, init_source: InitSource):
+    settings = bpy.context.scene.ds_settings
+    if ui_context == UIContext.IMAGE_EDITOR:
+        settings.init_source_image_editor = init_source.name
+    else:
+        settings.init_source_scene_view = init_source.name

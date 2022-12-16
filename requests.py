@@ -158,7 +158,7 @@ def render_text2img(output_file_directory, args):
 
     if response.status_code in (200, 201):
         res_img = response.content
-        with open(output_file_directory + "result.png", "wb") as res_img_file:
+        with open(output_file_directory + "/result.png", "wb") as res_img_file:
             res_img_file.write(res_img)
     else:
         res_body = response.json()
