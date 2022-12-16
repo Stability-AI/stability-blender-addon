@@ -40,7 +40,6 @@ class PromptList_RemoveItem(Operator):
     index: IntProperty()
 
     def execute(self, context):
-        print(self.index)
         context.scene.prompt_list.remove(self.index)
 
         return {"FINISHED"}

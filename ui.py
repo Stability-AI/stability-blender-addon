@@ -2,6 +2,8 @@ from . import addon_updater_ops
 import bpy
 from bpy.types import Panel
 import time
+import os
+from glob import glob
 
 from .prompt_list import MULTIPROMPT_ENABLED, render_prompt_list
 
@@ -177,7 +179,9 @@ class DreamStudio3DPanel(Panel):
         row = layout.row()
         row.scale_y = 2.0
         row.operator(DS_SceneRenderViewportOperator.bl_idname, text="Dream (Viewport)")
-        row.operator(DS_SceneRenderExistingOutputOperator.bl_idname, text="Dream (Render)")
+        row.operator(
+            DS_SceneRenderExistingOutputOperator.bl_idname, text="Dream (Render)"
+        )
         valid = render_validation(layout, settings, scene, UIContext.SCENE_VIEW)
         row.enabled = valid
         render_links_row(layout)
@@ -205,11 +209,38 @@ def validate_settings(
                 f"Unsupported render file type: {render_file_type}. Supported types: {SUPPORTED_RENDER_FILE_TYPES}"
             )
 
-    if not prompts[0] or prompts[0].prompt == "":
-        return False, "Enter a prompt."
+    render_file_path = scene.render.filepath
+    render_file_type = scene.render.image_settings.file_format
+    if init_source == InitSource.EXISTING_IMAGE:
 
-    if prompts[0] and prompts[0].prompt and len(prompts[0].prompt) > 500:
-        return False, "Enter a prompt."
+        if not os.path.exists(render_file_path):
+            return (
+                False,
+                "Input image does not exist. Check the Blender output settings, or render your image.",
+            )
+
+    if init_source == InitSource.EXISTING_VIDEO:
+
+        # filepath is a directory in this case
+        if not os.path.isdir(render_file_path):
+            return (
+                False,
+                "Input directory is not valid.",
+            )
+
+        files_in_dir = glob(os.path.join(render_file_path, f"*.{render_file_type}"))
+        if len(files_in_dir) == 0:
+            return (
+                False,
+                "No images found in the input directory. Check the Blender output settings, or render your animation.",
+            )
+
+    for p in prompts:
+        if not p or p.prompt == "":
+            return False, "Enter a prompt."
+
+        if p and p.prompt and len(p.prompt) > 500:
+            return False, "Enter a prompt."
 
     return True, ""
 

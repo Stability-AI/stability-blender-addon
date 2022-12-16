@@ -194,7 +194,7 @@ class GeneratorWorker(Thread):
             return
 
         # img2img mode - 3D view
-        if self.init_source == InitSource.EXISTING_IMAGE:
+        if self.init_source == InitSource.VIEWPORT:
             input_img_path = self.input_img_paths[0]
             if not os.path.exists(input_img_path):
                 raise Exception(
@@ -289,7 +289,7 @@ class DreamRenderOperator(Operator):
                 output_location == OutputDisplayLocation.FILE_SYSTEM
                 or ui_context == UIContext.SCENE_VIEW
             ):
-                open_folder(DreamStateOperator.rendered_images_dir)
+                open_folder(DreamStateOperator.generated_images_dir)
             DreamStateOperator.render_state = RenderState.IDLE
 
         if DreamStateOperator.render_state == RenderState.IDLE:
@@ -330,7 +330,7 @@ class DreamRenderOperator(Operator):
         init_image_width, init_image_height = get_init_image_dimensions(settings, scene)
         render_file_path = scene.render.filepath
         render_file_type = scene.render.image_settings.file_format
-        rendered_frames = []
+        init_img_paths = []
 
         if DreamStateOperator.rendering_from_viewport:
             init_source = InitSource.VIEWPORT
@@ -343,7 +343,10 @@ class DreamRenderOperator(Operator):
             init_image = copy_image(img)
             init_image.scale(init_image_width, init_image_height)
             init_image.save_render(init_img_path)
-            rendered_frames = [init_img_path]
+            init_img_paths = [init_img_path]
+        
+        if init_source == InitSource.EXISTING_IMAGE:
+            init_img_paths = [render_file_path]
 
         # Render 3D view
         if init_source == InitSource.VIEWPORT:
@@ -363,7 +366,7 @@ class DreamRenderOperator(Operator):
             scene.render.resolution_y = tmp_h
             # bpy.data.screens[workspace].overlay.show_overlays = tmp_show_overlay
 
-            rendered_frames = [init_img_path]
+            init_img_paths = [init_img_path]
 
             if res != {"FINISHED"}:
                 raise Exception("Failed to render: {}".format(res))
@@ -373,12 +376,12 @@ class DreamRenderOperator(Operator):
                 render_directory,
                 "*.{}".format(render_file_type.lower()),
             )
-            rendered_frames = glob(frames_glob)
+            init_img_paths = glob(frames_glob)
         DreamStateOperator.generator_thread = GeneratorWorker(
             scene,
             context,
             ui_context,
-            input_img_paths=rendered_frames,
+            input_img_paths=init_img_paths,
             output_img_directory=generated_images_dir,
             init_source=init_source,
         )
