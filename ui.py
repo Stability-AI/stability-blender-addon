@@ -140,8 +140,6 @@ class DreamStudioImageEditorPanel(PanelSectionImageEditor, Panel):
             render_in_progress_view(layout)
             return
 
-        valid = render_validation(layout, settings, scene, UIContext.IMAGE_EDITOR)
-
         render_prompt_list(context.scene, layout)
 
         render_dream_row(layout, settings, scene, UIContext.IMAGE_EDITOR)
