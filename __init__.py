@@ -172,7 +172,7 @@ class DreamStudioPreferences(AddonPreferences):
     bl_idname = __package__
 
     # TODO revert
-    api_key: StringProperty(name="API Key", default="sk-Yc1fipqiDj98UVwEvVTP6OPgQmRk8cFRUSx79K9D3qCiNAFy")
+    api_key: StringProperty(name="API Key", default="")
 
     record_analytics: BoolProperty(
         name="Record anonymous telemetry data",

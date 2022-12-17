@@ -93,7 +93,7 @@ def render_onboard_view(layout):
     get_started_row.operator(
         DS_FinishOnboardingOperator.bl_idname, text="Get Started", icon="CHECKBOX_HLT"
     )
-    get_started_row.enabled = prefs.api_key != ""
+    get_started_row.enabled = prefs.api_key != "" and len(prefs.api_key) > 30
 
 
 def render_links_row(layout):
@@ -225,11 +225,12 @@ def validate_settings(
     if not prompts or len(prompts) < 1:
         return False, "Add at least one prompt to the prompt list."
 
-    if settings.image_editor_use_init and ui_context == UIContext.IMAGE_EDITOR or DreamStateOperator.rendering_from_texture:
+    if settings.image_editor_use_init and ui_context == UIContext.IMAGE_EDITOR and DreamStateOperator.rendering_from_texture:
         context = bpy.context
-        img = context.space_data.image
-        if not img:
-            return ValidationState.RENDER_SETTINGS, "No image loaded in the image editor."
+        if context.space_data and context.space_data.image:
+            img = context.space_data.image
+            if not img:
+                return ValidationState.RENDER_SETTINGS, "No image loaded in the image editor."
 
     if init_source in (InitSource.EXISTING_VIDEO, InitSource.EXISTING_IMAGE):
         render_file_type = scene.render.image_settings.file_format

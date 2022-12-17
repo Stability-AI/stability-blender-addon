@@ -4,9 +4,13 @@ For instructions on installing the plugin, go here: [Installation](Installation.
 
 Stability for Blender is meant to be used in two different contexts: the 3D View, for taking a 3D scene and running Img2Img on rendered frames, or in the Image Editor, for running Img2Img on existing textures - or generating next textures from scratch.
 
-## How to use the 3D View Mode
+## Using the 3D View Mode
 
-To start, select the DreamStudio panel in the 3D View. You will see the following UI:
+To start, select the DreamStudio panel in the 3D View. You may need to click this arrow on the right side of the 3D View panel:
+
+![](/content/image_editor_slide_out.png)
+
+You should see the following UI:
 
 ![](/content/3D_view_default.png)
 
@@ -20,7 +24,7 @@ Now, to render. Click 'Dream (Viewport)' and Blender will render your current vi
 
 From here, try changing the prompt, adding multiple prompts, playing with the DreamStudio options, or the Blender render settings, and see what happens! You can set the 'Init Source' property in the 'Render Options' panel to 'Rendered Video Frames' to use a folder of video frames, as well. All parameters can also be automated - try changing the prompt strength over time to get some neat effects.
 
-## How to use the Image Editor Mode
+## Using the Image Editor Mode
 
 In Blender, change the UI type to Image Editor, like so:
 
