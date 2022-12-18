@@ -32,13 +32,14 @@ from .ui import (
 )
 from . import addon_updater_ops
 from .dependencies import check_dependencies_installed
+import getpass
 
 from .data import (
-    INIT_SOURCES,
+    INIT_TYPES,
     OUTPUT_LOCATIONS,
     APIType,
     Engine,
-    InitSource,
+    InitType,
     Sampler,
     engine_to_blender_enum,
     enum_to_blender_enum,
@@ -147,11 +148,20 @@ class DreamStudioSettings(bpy.types.PropertyGroup):
     )
 
     # Output settings
-    init_source: EnumProperty(
-        name="Init Source",
-        items=INIT_SOURCES,
-        default=InitSource.EXISTING_IMAGE.value,
+    init_type: EnumProperty(
+        name="Init Type",
+        items=INIT_TYPES,
+        default=InitType.TEXTURE.value,
         description="The source of the initial image. Select Scene Render to render the current frame and use that render as the init image, or select Image Editor to use the currently open image in the image editor as the init image. Select None to just use the prompt text to generate the image",
+    )
+    # Init type settings
+    init_animation_folder_path: StringProperty(
+        name="Frames Directory",
+        subtype="DIR_PATH",
+    )
+    init_texture_ref: PointerProperty(
+        name="Init Source",
+        type=bpy.types.Image,
     )
     image_editor_use_init: BoolProperty(
         name="Use Init Image",
@@ -176,7 +186,7 @@ class DreamStudioPreferences(AddonPreferences):
 
     record_analytics: BoolProperty(
         name="Record anonymous telemetry data",
-        description="Allow Stability to capture anonymous analytics data. This will only be used for further product development. No personal data will be collected.",
+        description="Allow Stability to capture anonymous analytics data. This will only be used for further product development. No personal data will be collected. This will install the Sentry SDK to allow us to capture these errors.",
         default=False,
     )
 
@@ -266,7 +276,7 @@ registered_operators = [
     RenderOptionsPanelSectionImageEditor,
     DS_FinishOnboardingOperator,
     DS_GetAPIKeyOperator,
-    DS_OpenOutputFolderOperator
+    DS_OpenOutputFolderOperator,
 ]
 
 
@@ -276,9 +286,7 @@ def register():
     for op in prompt_list_operators:
         bpy.utils.register_class(op)
 
-    bpy.types.Scene.prompt_list = bpy.props.CollectionProperty(
-        type=PromptListItem
-    )
+    bpy.types.Scene.prompt_list = bpy.props.CollectionProperty(type=PromptListItem)
     bpy.types.Scene.prompt_list_index = bpy.props.IntProperty(
         name="Index for prompt_list", default=0
     )
@@ -290,9 +298,16 @@ def register():
     for op in registered_operators:
         bpy.utils.register_class(op)
 
+
     bpy.utils.register_class(DreamStudioPreferences)
     bpy.types.Scene.ds_settings = PointerProperty(type=DreamStudioSettings)
+
     bpy.context.preferences.use_preferences_save = True
+
+    # hehe
+    if getpass.getuser() == "coold":
+        prefs = bpy.context.preferences.addons[__package__].preferences
+        prefs.api_key = "sk-Yc1fipqiDj98UVwEvVTP6OPgQmRk8cFRUSx79K9D3qCiNAFy"
 
 
 def unregister():
