@@ -21,8 +21,10 @@ import site
 from threading import Thread
 import time
 import webbrowser
+from bpy.app.handlers import persistent
 
 from .data import (
+    DSAccount,
     TrackingEvent,
     UIContext,
     InitType,
@@ -34,11 +36,12 @@ from .data import (
     get_init_image_dimensions,
     get_init_type,
     get_preferences,
+    get_settings,
     initialize_sentry,
     log_sentry_event,
 )
 from .dependencies import install_dependencies, check_dependencies_installed
-from .requests import log_analytics_event, render_img2img, render_text2img
+from .requests import get_account_details, log_analytics_event, render_img2img, render_text2img
 import multiprocessing as mp
 import threading
 from glob import glob
@@ -264,7 +267,6 @@ class DreamRenderOperator(Operator):
     bl_label = "Dream!"
 
     def modal(self, context, event):
-
         settings = context.scene.ds_settings
         output_location = OutputDisplayLocation[settings.output_location]
         ui_context = DreamStateOperator.ui_context
@@ -439,6 +441,9 @@ class DreamStateOperator(Operator):
     render_start_time: float = None
 
     sentry_initialized = False
+
+    account: DSAccount = None
+    last_account_check_time = 0
 
     # Cancel any in-progress render and reset the addon state.
     def reset_render_state():

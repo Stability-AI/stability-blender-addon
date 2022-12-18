@@ -338,3 +338,9 @@ def get_anim_images():
     )
     init_img_paths = sorted(glob(glob_paths))
     return init_img_paths, frame_path
+
+class DSAccount:
+    
+    email: str
+    user_id: str
+    credits: float

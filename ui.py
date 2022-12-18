@@ -1,3 +1,4 @@
+from .requests import get_account_details
 from . import addon_updater_ops
 from bpy.types import Panel
 import time
@@ -107,6 +108,15 @@ def render_output_location_row(layout, settings):
     output_location_row.use_property_decorate = False
     output_location_row.prop(settings, "output_location")
 
+def render_account_details(layout, settings):
+    prefs = get_preferences()
+    if DreamStateOperator.account:
+        account_row = layout.row()
+        account_row.label(text="Logged in as: {}".format(DreamStateOperator.account.email))
+        account_row.label(text="Balance: {} credits".format(DreamStateOperator.account.credits))
+    if not DreamStateOperator.account or DreamStateOperator.last_account_check_time + 60 < time.time():
+        DreamStateOperator.account = get_account_details(prefs.base_url, prefs.api_key)
+        DreamStateOperator.last_account_check_time = time.time()
 
 # UI for the image editor panel.
 class DreamStudioImageEditorPanel(PanelSectionImageEditor, Panel):
@@ -136,6 +146,8 @@ class DreamStudioImageEditorPanel(PanelSectionImageEditor, Panel):
             render_in_progress_view(layout, UIContext.IMAGE_EDITOR)
             return
 
+
+        render_account_details(layout, settings)
         render_prompt_list(context.scene, layout)
 
         render_dream_row(layout, settings, scene, UIContext.IMAGE_EDITOR)
@@ -172,6 +184,7 @@ class DreamStudio3DPanel(Panel):
             render_in_progress_view(layout, UIContext.SCENE_VIEW)
             return
 
+        render_account_details(layout, settings)
         render_prompt_list(scene, layout)
 
         render_dream_row(layout, settings, scene, UIContext.SCENE_VIEW)

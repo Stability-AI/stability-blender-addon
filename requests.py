@@ -5,7 +5,7 @@ import random
 import time
 import bpy
 from .prompt_list import MULTIPROMPT_ENABLED
-from .data import APIType, TrackingEvent, get_preferences, log_sentry_event
+from .data import APIType, TrackingEvent, DSAccount, get_preferences, log_sentry_event
 
 
 def render_img2img(input_file_location, output_file_location, args):
@@ -219,3 +219,32 @@ def log_analytics_event(
         print(
             f"Failed to record tracking event: {response.status_code} {response.reason}"
         )
+
+def get_account_details(base_url: str, api_key: str) -> DSAccount:
+    
+    user = DSAccount()
+    
+    response = requests.get(f"{base_url}/user/account", headers={
+        "Authorization": api_key
+    })
+
+    if response.status_code != 200:
+        raise Exception("Error getting user details: " + str(response.text))
+
+    # Do something with the payload...
+    user_payload = response.json()
+
+    user.email = user_payload["email"]
+    user.id = user_payload["id"]
+
+    response = requests.get(f"{base_url}/user/balance", headers={
+        "Authorization": api_key
+    })
+
+    if response.status_code != 200:
+        raise Exception("Error getting user balance: " + str(response.text))
+    
+    credits = response.json()["credits"]
+    user.credits = round(credits, 2)
+
+    return user
