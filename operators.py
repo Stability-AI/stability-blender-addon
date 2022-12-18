@@ -271,6 +271,7 @@ class DreamRenderOperator(Operator):
         output_location = OutputDisplayLocation[settings.output_location]
         ui_context = DreamStateOperator.ui_context
         init_type = get_init_type()
+        prefs = get_preferences()
 
         if DreamStateOperator.render_start_time:
             settings.current_time = time.time() - DreamStateOperator.render_start_time
@@ -280,6 +281,8 @@ class DreamRenderOperator(Operator):
             return {"FINISHED"}
 
         if DreamStateOperator.render_state == RenderState.FINISHED:
+            DreamStateOperator.account = get_account_details(prefs.base_url, prefs.api_key)
+            DreamStateOperator.last_account_check_time = time.time()
             DreamStateOperator.render_state = RenderState.IDLE
             image_tex_area = None
             for area in bpy.context.screen.areas:

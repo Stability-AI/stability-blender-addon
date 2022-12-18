@@ -58,7 +58,7 @@ def render_in_progress_view(layout, ui_context: UIContext):
         state_text += " ({}s)".format(
             round(time.time() - DreamStateOperator.render_start_time, 1)
         )
-    if init_type == InitType.ANIMATION and ui_context == UIContext.SCENE_VIEW:
+    if init_type == InitType.ANIMATION and ui_context == UIContext.SCENE_VIEW and not DreamStateOperator.rendering_from_viewport:
         state_text += " (frame {} / {})".format(
             DreamStateOperator.current_frame_idx, DreamStateOperator.total_frame_count
         )
