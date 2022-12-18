@@ -30,6 +30,7 @@ from .data import (
     RenderState,
     copy_image,
     format_rest_args,
+    get_anim_images,
     get_init_image_dimensions,
     get_init_type,
     get_preferences,
@@ -267,6 +268,7 @@ class DreamRenderOperator(Operator):
         settings = context.scene.ds_settings
         output_location = OutputDisplayLocation[settings.output_location]
         ui_context = DreamStateOperator.ui_context
+        init_type = get_init_type()
 
         if DreamStateOperator.render_start_time:
             settings.current_time = time.time() - DreamStateOperator.render_start_time
@@ -281,7 +283,7 @@ class DreamRenderOperator(Operator):
             for area in bpy.context.screen.areas:
                 if area.type == "IMAGE_EDITOR":
                     image_tex_area = area
-            if output_location == OutputDisplayLocation.TEXTURE_VIEW:
+            if output_location == OutputDisplayLocation.TEXTURE_VIEW and init_type != InitType.ANIMATION:
                 rendered_image = bpy.data.images.load(
                     DreamStateOperator.last_rendered_image_path
                 )
@@ -329,7 +331,6 @@ class DreamRenderOperator(Operator):
         init_type = get_init_type()
         # Ensure there isn't an existing thread with a lock on the render directory.
         DreamStateOperator.kill_render_thread()
-
         (
             rendered_dir,
             generated_images_dir,
@@ -340,7 +341,6 @@ class DreamRenderOperator(Operator):
             if init_type == InitType.ANIMATION
             else generated_images_dir
         )
-        DreamStateOperator.rendered_images_dir = rendered_dir
         DreamStateOperator.generated_output_dir = out_dir
         if context.area.type == "IMAGE_EDITOR":
             ui_context = UIContext.IMAGE_EDITOR
@@ -349,7 +349,6 @@ class DreamRenderOperator(Operator):
 
         init_image_width, init_image_height = get_init_image_dimensions(settings, scene)
         render_file_path = scene.render.filepath
-        render_file_type = scene.render.image_settings.file_format
         init_img_paths = []
 
         if DreamStateOperator.rendering_from_viewport:
@@ -401,12 +400,7 @@ class DreamRenderOperator(Operator):
             if res != {"FINISHED"}:
                 raise Exception("Failed to render: {}".format(res))
         elif init_type == InitType.ANIMATION:
-            render_directory = os.path.dirname(render_file_path)
-            frames_glob = os.path.join(
-                render_directory,
-                "*.{}".format(render_file_type.lower()),
-            )
-            init_img_paths = glob(frames_glob)
+            init_img_paths, frame_path = get_anim_images()
         DreamStateOperator.generator_thread = GeneratorWorker(
             scene,
             context,

@@ -1,11 +1,10 @@
 from . import addon_updater_ops
-import bpy
 from bpy.types import Panel
 import time
 import os
 from glob import glob
 
-from .prompt_list import MULTIPROMPT_ENABLED, render_prompt_list
+from .prompt_list import render_prompt_list
 
 from .data import (
     SUPPORTED_RENDER_FILE_TYPES,
@@ -13,7 +12,7 @@ from .data import (
     RenderState,
     UIContext,
     ValidationState,
-    check_dependencies_installed,
+    get_anim_images,
     get_init_image_dimensions,
     get_init_type,
     get_preferences,
@@ -247,7 +246,7 @@ def validate_settings(
 
     if init_type == InitType.ANIMATION:
 
-        render_dir = os.path.dirname(render_file_path)
+        init_img_paths, render_dir = get_anim_images()
 
         # filepath is a directory in this case
         if not os.path.isdir(render_dir):
@@ -255,13 +254,10 @@ def validate_settings(
                 ValidationState.RENDER_SETTINGS,
                 "Input directory is not valid.",
             )
-
-        search_glob = os.path.join(render_dir, f"*.{render_file_type.lower()}")
-        files_in_dir = glob(search_glob)
-        if len(files_in_dir) == 0:
+        if len(init_img_paths) < 1:
             return (
                 ValidationState.RENDER_SETTINGS,
-                "No frames found in the input directory.",
+                "No images found in input directory.",
             )
 
     for p in prompts:

@@ -6,6 +6,7 @@ import os
 import subprocess
 import sys
 import platform
+from glob import glob
 
 from .dependencies import check_dependencies_installed, install_dependencies
 
@@ -326,3 +327,14 @@ def get_settings():
 def get_init_type() -> InitType:
     settings = bpy.context.scene.ds_settings
     return InitType[settings.init_type]
+
+def get_anim_images():
+    render_file_type = bpy.context.scene.render.image_settings.file_format
+    settings = bpy.context.scene.ds_settings
+    frame_path = bpy.path.abspath(settings.init_animation_folder_path)
+    glob_paths = os.path.join(
+        frame_path,
+        "*.{}".format(render_file_type.lower()),
+    )
+    init_img_paths = sorted(glob(glob_paths))
+    return init_img_paths, frame_path
