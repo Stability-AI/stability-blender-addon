@@ -6,23 +6,39 @@ Stability for Blender is meant to be used in two different contexts: the 3D View
 
 ## Using the 3D View Mode
 
-To start, select the DreamStudio panel in the 3D View. You may need to click this arrow on the right side of the 3D View panel:
+Load up a Blender project - if you don't have one handy, you can open the demo project, which you can download [here](https://github.com/Stability-AI/stability-blender-addon/raw/main/example_scenes/the%20orb.blend).
+
+Open your project and select the DreamStudio panel in the 3D View. You may need to click this arrow on the right side of the 3D View panel:
 
 ![](/content/image_editor_slide_out.jpg)
 
-You should see the following UI:
+Enter your DreamStudio API key, and you should see the following UI:
 
 ![](/content/3D_view_default.jpjpg)
 
-To start, press the 'Add' button on top of the Prompts list. This will add an empty prompt to the list - try filling with `A dream of a distant galaxy, concept art, matte painting, HQ, 4k`. You can click on 'DreamStudio Options' and 'Render Options' to toggle the panels for options relevant to diffusion and Blender, respectively.
+To start, press the 'Add' button on top of the Prompts list. This will add an empty prompt to the list - try filling the text field with `A mystical floating orb, concept art, matte painting, HQ, 4k`. You can click on 'DreamStudio Options' and 'Render Options' to toggle the panels for options relevant to diffusion and Blender, respectively.
 
 Your UI should look like this:
 
 ![](/content/3D_view_ready.jpg)
 
-Now, to render. Click 'Dream (Viewport)' and Blender will render your current viewport view, then send the frame to the Stability API. When the API finishes processing your image, the result will be displayed in a pop-up window. When you click 'Dream (Last Render)', the addon will look at the current output path in 'Output Properties' in Blender, and send the image rendered there to the API. When the API finishes processing your image, the result will be displayed in a pop-up window.
+### Generating from the Viewport
+
+Sometimes it can be useful to get a quick render from a vantage point to see how Stable Diffusion will process a view. Click the 'Render (Viewport) button to render the contents of the current viewport. Note that your current viewport shading mode will apply - make sure you are in 'Material Preview' or 'Render' view, or you will get a bunch of grey objects!
 
 From here, try changing the prompt, adding multiple prompts, playing with the DreamStudio options, or the Blender render settings, and see what happens! You can set the 'Init Source' property in the 'Render Options' panel to 'Rendered Video Frames' to use a folder of video frames, as well. All parameters can also be automated - try changing the prompt strength over time to get some neat effects.
+
+### Generating from a Render
+
+To generate from an image rendered in Blender, open the Render Options panel by clicking the arrow next to the title. Then, change the Init Source to 'Texture'. You can choose any texture in your project as the init image, but for this you'll want to select 'Render Result'. Press F12 or Render -> Render Image in the top bar, to render your scene, then press `Dream (Texture)` in the DreamStudio UI. You should see your scene processed by Stable Diffusion!
+
+# TODO add a GIF
+
+### Generating from an Animation
+
+One of the coolest features of the addon is the ability to render out animations. Hover over any parameter in the UI and press I to insert a keyframe for it, at your current frame in Blender - then, open the Render Options panel by clicking the arrow next to the title. Change the Init Source to 'Animation'. Then, render out your video as a series of stills in a directory; finally, select that directory as the `Frame Directory` in the addon window, under Render Options, and press `Dream (Animate)`. You should see the addon generate a new frame in the output folder, with each parameter at its interpolated value for each frame. Press 'Show Folder' to open the folder with your generated frames.
+
+# TODO add a picture of the animation
 
 ## Using the Image Editor Mode
 
