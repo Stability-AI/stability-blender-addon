@@ -321,7 +321,7 @@ def get_preferences():
 
 def get_settings():
     if not hasattr(bpy.context.scene, "ds_settings"):
-        raise Exception("DreamStudio settings not found! Restart Belnder to fix this issue.")
+        raise Exception("DreamStudio settings not found! Restart Blender to fix this issue.")
     return bpy.context.scene.ds_settings
 
 def get_init_type() -> InitType:

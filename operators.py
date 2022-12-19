@@ -61,7 +61,7 @@ def open_folder(dir: str):
 
 # Create and clear render directories. This function should get all filesystem info for rendering,
 # as well as any platform specific info.
-def setup_render_directories():
+def setup_render_directories(clear_anim=True):
     dreamstudio_dir = os.path.join(tempfile.gettempdir(), "dreamstudio")
     rendered_dir = os.path.join(dreamstudio_dir, "rendered")
     generated_images_dir = os.path.join(dreamstudio_dir, "generated_images")
@@ -78,7 +78,7 @@ def setup_render_directories():
             raise Exception(
                 f"Directory {dir} is not writable. Please check your Blender application permissions."
             )
-        if dir == generated_animation_dir:
+        if dir == generated_animation_dir and clear_anim:
             for file in glob(os.path.join(dir, "*")):
                 os.remove(file)
     return rendered_dir, generated_images_dir, generated_animation_dir
@@ -233,13 +233,18 @@ class GeneratorWorker(Thread):
                     or DreamStateOperator.render_state == RenderState.CANCELLED
                 ):
                     return
+                print('frame set', i + 1)
                 scene.frame_set(i + 1)
+                print('did set frame')
                 DreamStateOperator.render_start_time = time.time()
                 args = format_rest_args(settings, scene.prompt_list)
+                print('args', args)
                 output_file_path = os.path.join(
                     self.output_img_directory, f"result_{i}.png"
                 )
+                print('rendering frame', i, frame_img_file, output_file_path)
                 rendered_image = bpy.data.images.load(frame_img_file)
+                print('scaling frame', i, init_image_width, init_image_height)
                 rendered_image.scale(init_image_width, init_image_height)
                 DreamStateOperator.current_frame_idx = i + 1
                 print(
@@ -487,8 +492,24 @@ class DS_OpenOutputFolderOperator(Operator):
             dreamstudio_dir,
             generated_images_dir,
             generated_animation_dir,
-        ) = setup_render_directories()
-        open_folder(dreamstudio_dir)
+        ) = setup_render_directories(clear_anim=False)
+        init_type = get_init_type()
+        if init_type == InitType.ANIMATION:
+            open_folder(generated_animation_dir)
+        else:
+            open_folder(generated_images_dir)
+        return {"FINISHED"}
+
+class DS_UseRenderFolderOperator(Operator):
+    """Use the current Output Path setting in Output Properties as the input folder"""
+    bl_idname = "dreamstudio.set_render_folder"
+    bl_label = "Use Render Folder"
+
+    def execute(self, context):
+        settings = get_settings()
+        scene = context.scene
+        abs_filepath = bpy.path.abspath(scene.render.filepath)
+        settings.init_animation_folder_path = abs_filepath
         return {"FINISHED"}
 
 

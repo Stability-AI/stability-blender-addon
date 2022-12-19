@@ -27,6 +27,7 @@ from .operators import (
     DS_OpenOutputFolderOperator,
     DS_SceneRenderExistingOutputOperator,
     DS_SceneRenderViewportOperator,
+    DS_UseRenderFolderOperator,
     DreamStateOperator,
 )
 
@@ -403,7 +404,9 @@ def render_render_options_panel(self, context, ui_context: UIContext):
         )
 
     if init_type == InitType.ANIMATION:
-        layout.prop(settings, "init_animation_folder_path")
+        init_folder_row = layout.row()
+        init_folder_row.prop(settings, "init_animation_folder_path")
+        init_folder_row.operator(DS_UseRenderFolderOperator.bl_idname)
 
     use_resolution_label = "Use Render Resolution"
     if ui_context == UIContext.IMAGE_EDITOR:

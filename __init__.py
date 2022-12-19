@@ -16,6 +16,7 @@ from .operators import (
     DS_OpenOutputFolderOperator,
     DS_SceneRenderExistingOutputOperator,
     DS_SceneRenderViewportOperator,
+    DS_UseRenderFolderOperator,
     DreamStateOperator,
     DS_CancelRenderOperator,
     DS_ContinueRenderOperator,
@@ -181,7 +182,6 @@ class DreamStudioSettings(bpy.types.PropertyGroup):
 class DreamStudioPreferences(AddonPreferences):
     bl_idname = __package__
 
-    # TODO revert
     api_key: StringProperty(name="API Key", default="")
 
     record_analytics: BoolProperty(
@@ -277,6 +277,7 @@ registered_operators = [
     DS_FinishOnboardingOperator,
     DS_GetAPIKeyOperator,
     DS_OpenOutputFolderOperator,
+    DS_UseRenderFolderOperator
 ]
 
 
