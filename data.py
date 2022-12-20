@@ -6,6 +6,7 @@ import os
 import subprocess
 import sys
 import platform
+from glob import glob
 
 from .dependencies import check_dependencies_installed, install_dependencies
 
@@ -95,15 +96,14 @@ class RenderState(Enum):
 
 
 # Where to grab the init image from.
-class InitSource(Enum):
+class InitType(Enum):
     TEXT = 1
     # From an image that is already on disk.
-    EXISTING_IMAGE = 2
+    TEXTURE = 2
     # From an animation that is already on disk.
-    EXISTING_VIDEO = 3
-    # From a texture that is already on disk.
+    ANIMATION = 3
+    # From the active viewport.
     VIEWPORT = 4
-    TEXTURE = 5
 
 
 # Which UI element are we operating from?
@@ -119,19 +119,19 @@ class OutputDisplayLocation(Enum):
 
 
 # Used to display the init source property in the UI
-INIT_SOURCES = [
-    (InitSource.TEXT.name, "Text Prompt Only", "", InitSource.TEXT.value),
+INIT_TYPES = [
+    (InitType.TEXT.name, "Text Prompt Only", "", InitType.TEXT.value),
     (
-        InitSource.EXISTING_IMAGE.name,
-        "Rendered Image",
+        InitType.TEXTURE.name,
+        "Texture",
         "",
-        InitSource.EXISTING_IMAGE.value,
+        InitType.TEXTURE.value,
     ),
     (
-        InitSource.EXISTING_VIDEO.name,
-        "Rendered Video Frames",
+        InitType.ANIMATION.name,
+        "Animation",
         "",
-        InitSource.EXISTING_VIDEO.value,
+        InitType.ANIMATION.value,
     ),
 ]
 
@@ -319,6 +319,28 @@ def get_preferences():
         return None
     return bpy.context.preferences.addons[__package__].preferences
 
-def get_init_source() -> InitSource:
+def get_settings():
+    if not hasattr(bpy.context.scene, "ds_settings"):
+        raise Exception("DreamStudio settings not found! Restart Blender to fix this issue.")
+    return bpy.context.scene.ds_settings
+
+def get_init_type() -> InitType:
     settings = bpy.context.scene.ds_settings
-    return InitSource[settings.init_source]
+    return InitType[settings.init_type]
+
+def get_anim_images():
+    render_file_type = bpy.context.scene.render.image_settings.file_format
+    settings = bpy.context.scene.ds_settings
+    frame_path = bpy.path.abspath(settings.init_animation_folder_path)
+    glob_paths = os.path.join(
+        frame_path,
+        "*.{}".format(render_file_type.lower()),
+    )
+    init_img_paths = sorted(glob(glob_paths))
+    return init_img_paths, frame_path
+
+class DSAccount:
+    
+    email: str
+    user_id: str
+    credits: float
