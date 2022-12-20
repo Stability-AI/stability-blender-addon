@@ -1,4 +1,4 @@
-# Using Stability for Blender
+# Using DreamStudio for Blender
 
 For instructions on installing the plugin, go here: [Installation](Installation.md)
 
