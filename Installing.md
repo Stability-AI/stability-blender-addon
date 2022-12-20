@@ -1,6 +1,6 @@
 # Installing DreamStudio for Blender
 
-1. First, download the latest release of Blender from [here](https://www.blender.org/download/), and the latest release of the plugin from from [Releases](https://github.com/Stability-AI/stability-blender-addon/releases/). Click the 'Source Code (zip)' link:
+1. First, download the latest release of Blender from [here](https://www.blender.org/download/), and the latest release of the plugin from from [Releases](https://github.com/Stability-AI/stability-blender-addon/releases/). Click the 'stability-blender-addon' link:
 
 ![](/content/install_release.jpg)
 
