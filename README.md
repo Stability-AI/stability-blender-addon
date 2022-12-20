@@ -1,8 +1,8 @@
 # Stability Addon for Blender
 
-[Go here for step-by-step installation instructions!](/Installing.md)
+[Installation instructions](/Installing.md)
 
-[In-depth usage instructions](/Usage.md)
+[Usage instructions](/Usage.md)
 
 
 This is a plugin for Blender that lets you use the Stability.ai REST API for a variety of tasks, including:

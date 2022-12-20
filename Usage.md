@@ -30,9 +30,19 @@ Sometimes it can be useful to get a quick render from a vantage point to see how
 
 To generate from an image rendered in Blender, open the Render Options panel by clicking the arrow next to the title. Then, change the Init Source to 'Texture'. You can choose any texture in your project as the init image, but for this you'll want to select 'Render Result'. Press F12 or Render -> Render Image in the top bar, to render your scene, then press `Dream (Texture)` in the DreamStudio UI. You should see your scene processed by Stable Diffusion!
 
+![](/content/render_texture_init.png)
+
 ### Generating from an Animation
 
-One of the coolest features of the addon is the ability to render out animations. Hover over any parameter in the UI and press I to insert a keyframe for it, at your current frame in Blender - then, open the Render Options panel by clicking the arrow next to the title. Change the Init Source to 'Animation'. Then, render out your video as a series of stills in a directory; finally, select that directory as the `Frame Directory` in the addon window, under Render Options, and press `Dream (Animate)`. You should see the addon generate a new frame in the output folder, with each parameter at its interpolated value for each frame. Press 'Show Folder' to open the folder with your generated frames.
+One of the coolest features of the addon is the ability to render out animations. Hover over any parameter in the UI and press I to insert a keyframe for it, at your current frame in Blender - then, open the Render Options panel by clicking the arrow next to the title. Change the Init Source to 'Animation'.
+
+Render out your video as a series of stills in a directory; your output settings should look like this:
+
+![](/content/render_anim_frames.png)
+
+finally, select that directory as the `Frame Directory` in the addon window, under Render Options, and press `Dream (Animate)`. You should see the addon generate a new frame in the output folder, with each parameter at its interpolated value for each frame. Press 'Show Folder' to open the folder with your generated frames.
+
+![](/content/render_animation_init.png)
 
 ## Using the Image Editor Mode
 
