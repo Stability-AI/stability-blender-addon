@@ -9,7 +9,8 @@ This is a plugin for Blender that lets you use the Stability.ai REST API for a v
 
 * Send rendered animations and still frames to Stable Diffusion as init images, leading to some wild effects
 
-![](/content/render2img.gif)
+![](/content/city_init.png)
+![](/content/city_result.png)
 * Take a texture and send it through Stable Diffusion, allowing you to iterate quickly on refining textures
 
 ![](/content/img2img.gif)
