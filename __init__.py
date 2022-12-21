@@ -65,7 +65,7 @@ bl_info = {
     "author": "Stability AI",
     "description": "",
     "blender": (2, 80, 0),
-    "version": (0, 0, 4),
+    "version": (0, 0, 7),
     "location": "",
     "warning": "",
     "category": "AI",
@@ -185,7 +185,7 @@ class DreamStudioPreferences(AddonPreferences):
     api_key: StringProperty(name="API Key", default="")
 
     record_analytics: BoolProperty(
-        name="Record anonymous telemetry data",
+        name="Record and send error data to Stability",
         description="Allow Stability to capture anonymous analytics data. This will only be used for further product development. No personal data will be collected. This will install the Sentry SDK to allow us to capture these errors.",
         default=False,
     )
@@ -242,8 +242,9 @@ class DreamStudioPreferences(AddonPreferences):
         # Disabled until GRPC is supported.
         # layout.prop(self, "api_type")
         layout.prop(self, "api_key")
+        layout.operator(DS_GetAPIKeyOperator.bl_idname, text="Get your API key here", icon="URL")
         layout.prop(self, "base_url")
-        layout.prop(self, "updater_access_token")
+        layout.prop(self, "record_analytics")
         layout.operator(
             DS_FinishOnboardingOperator.bl_idname,
             text="Reinstall Dependencies",

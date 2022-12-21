@@ -1,6 +1,9 @@
 .vscode
-__pycache__
+__pycache__/*
 *.tgz
 .python_dependencies/*
 stability-blender-addon_updater_status.json
 stability-blender-addon_updater/*
+.DS_Store
+content/.DS_Store
+example_scenes/*.blend1
