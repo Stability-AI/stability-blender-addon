@@ -180,7 +180,6 @@ class GeneratorWorker(Thread):
         DreamStateOperator.render_state = RenderState.DIFFUSING
         output_file_path = os.path.join(self.output_img_directory, "result.png")
         init_image_width, init_image_height = get_init_image_dimensions(settings, scene)
-        init_img_path = self.input_img_paths[0]
         DreamStateOperator.last_rendered_image_path = output_file_path
 
         # text2img mode
@@ -192,6 +191,7 @@ class GeneratorWorker(Thread):
                 raise Exception("Error generating image: {} {}".format(status, reason))
             return
 
+        init_img_path = self.input_img_paths[0]
         # img2img mode - image editor, which can only generate from textures and text
         if self.init_type == InitType.TEXTURE or self.init_type == InitType.TEXTURE:
             DreamStateOperator.render_state = RenderState.DIFFUSING
