@@ -8,9 +8,12 @@ from .prompt_list import MULTIPROMPT_ENABLED
 from .data import APIType, TrackingEvent, DSAccount, get_preferences, log_sentry_event
 
 
-def render_img2img(input_file_location, output_file_location, args):
+def render_img2img(input_file_location, output_file_location, args, depth=False):
     preferences = get_preferences()
     api_type = APIType[preferences.api_type]
+    if depth:
+        log_sentry_event(TrackingEvent.DEPTH2IMG)
+        return render_depth2img_rest(input_file_location, output_file_location, args)
     log_sentry_event(TrackingEvent.IMG2IMG)
     if api_type == APIType.REST:
         return render_img2img_rest(input_file_location, output_file_location, args)
@@ -40,6 +43,53 @@ def render_img2img_rest(input_file_location, output_file_location, args):
     files = [
         (
             "init_image",
+            ("render_0001.png", open(input_file_location, "rb"), "image/png"),
+        )
+    ]
+    headers = {
+        "accept": "image/png",
+        "Authorization": args["api_key"],
+    }
+
+    response = requests.request("POST", url, headers=headers, data=payload, files=files)
+
+    msg = response.reason
+
+    if response.status_code in (200, 201):
+        res_img = response.content
+        with open(output_file_location, "wb") as res_img_file:
+            res_img_file.write(res_img)
+    else:
+        try:
+            res_body = response.json()
+            msg = res_body["message"]
+            print(msg)
+        except json.JSONDecodeError:
+            print(response.text)
+    return response.status_code, msg
+
+def render_depth2img_rest(input_file_location, output_file_location, args):
+    seed = random.randrange(0, 4294967295) if args["seed"] is None else args["seed"]
+    all_options = {
+        "cfg_scale": args["cfg_scale"],
+        "clip_guidance_preset": args["clip_guidance_preset"],
+        "height": 512,
+        "sampler": "K_DPM_2_ANCESTRAL",
+        "seed": seed,
+        "step_schedule_end": 0.01,
+        "step_schedule_start": 1.0 - args["init_strength"],
+        "steps": args["steps"],
+        "text_prompts": args["prompts"],
+        "width": 512,
+    }
+
+    base_url = args["base_url"]
+    url = f"{base_url}/generation/stable-diffusion-depth-v2-0/depth-to-image"
+
+    payload = {"options": json.dumps(all_options)}
+    files = [
+        (
+            "depth_image",
             ("render_0001.png", open(input_file_location, "rb"), "image/png"),
         )
     ]
@@ -224,27 +274,31 @@ def get_account_details(base_url: str, api_key: str) -> DSAccount:
     
     user = DSAccount()
     
-    response = requests.get(f"{base_url}/user/account", headers={
-        "Authorization": api_key
-    })
+    try:
+        response = requests.get(f"{base_url}/user/account", headers={
+            "Authorization": api_key
+        })
 
-    if response.status_code != 200:
-        raise Exception("Error getting user details: " + str(response.text))
+        if response.status_code != 200:
+            raise Exception("Error getting user details: " + str(response.text))
 
-    # Do something with the payload...
-    user_payload = response.json()
+        # Do something with the payload...
+        user_payload = response.json()
 
-    user.email = user_payload["email"]
-    user.id = user_payload["id"]
+        user.email = user_payload["email"]
+        user.id = user_payload["id"]
 
-    response = requests.get(f"{base_url}/user/balance", headers={
-        "Authorization": api_key
-    })
+        response = requests.get(f"{base_url}/user/balance", headers={
+            "Authorization": api_key
+        })
 
-    if response.status_code != 200:
-        raise Exception("Error getting user balance: " + str(response.text))
-    
-    credits = response.json()["credits"]
-    user.credits = round(credits, 2)
+        if response.status_code != 200:
+            raise Exception("Error getting user balance: " + str(response.text))
+        
+        credits = response.json()["credits"]
+        user.credits = round(credits, 2)
+        user.logged_in = True
+    except Exception as e:
+        print(f"Error getting account details: {e}")
 
     return user

@@ -165,7 +165,7 @@ class GeneratorWorker(Thread):
             DreamStateOperator.render_state = RenderState.IDLE
             DreamStateOperator.reset_render_state()
             DreamStateOperator.kill_render_thread()
-            if check_dependencies_installed():
+            if check_dependencies_installed(using_grpc=False, using_sentry=True):
                 from sentry_sdk import capture_exception
 
                 capture_exception(e)
@@ -193,7 +193,7 @@ class GeneratorWorker(Thread):
 
         init_img_path = self.input_img_paths[0]
         # img2img mode - image editor, which can only generate from textures and text
-        if self.init_type == InitType.TEXTURE or self.init_type == InitType.TEXTURE:
+        if self.init_type in (InitType.TEXTURE, InitType.DEPTH):
             DreamStateOperator.render_state = RenderState.DIFFUSING
             if not os.path.exists(init_img_path):
                 raise Exception(
@@ -543,8 +543,8 @@ class DS_FinishOnboardingOperator(Operator):
 
     def execute(self, context):
         prefs = get_preferences()
-        if not check_dependencies_installed(using_grpc=True, using_sentry=prefs.record_analytics):
-            install_dependencies(using_grpc=True, using_sentry=prefs.record_analytics)
+        if not check_dependencies_installed(using_grpc=False, using_sentry=prefs.record_analytics):
+            install_dependencies(using_grpc=False, using_sentry=prefs.record_analytics)
         if prefs.record_analytics:
             initialize_sentry()
         DreamStateOperator.sentry_initialized = True

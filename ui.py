@@ -111,7 +111,7 @@ def render_output_location_row(layout, settings):
 
 def render_account_details(layout, settings):
     prefs = get_preferences()
-    if DreamStateOperator.account:
+    if DreamStateOperator.account and DreamStateOperator.account.logged_in:
         account_row = layout.row()
         account_row.label(text="Logged in as: {}".format(DreamStateOperator.account.email))
         account_row.label(text="Balance: {} credits".format(DreamStateOperator.account.credits))
@@ -195,6 +195,7 @@ TITLES = {
     InitType.ANIMATION.value: "Dream (Animation)",
     InitType.TEXT.value: "Dream (Text)",
     InitType.TEXTURE.value: "Dream (Texture)",
+    InitType.DEPTH.value: "Dream (Depth Map)",
 }
 
 
@@ -314,22 +315,22 @@ class RenderOptionsPanelSectionImageEditor(PanelSectionImageEditor, Panel):
     bl_label = "Texture Options"
 
     def draw(self, context):
-        render_render_options_panel(self, context, UIContext.IMAGE_EDITOR)
+        draw_render_options_panel(self, context, UIContext.IMAGE_EDITOR)
 
 
 class RenderOptionsPanelSection3DEditor(PanelSection3D, Panel):
 
     bl_parent_id = DreamStudio3DPanel.bl_idname
-    bl_label = "Render Options"
+    bl_label = "Init Options"
 
     def draw(self, context):
-        render_render_options_panel(self, context, UIContext.SCENE_VIEW)
+        draw_render_options_panel(self, context, UIContext.SCENE_VIEW)
 
 
 class AdvancedOptionsPanelSection3DEditor(PanelSection3D, Panel):
 
     bl_parent_id = DreamStudio3DPanel.bl_idname
-    bl_label = "DreamStudio Options"
+    bl_label = "Generation Options"
     bl_options = {"DEFAULT_CLOSED"}
 
     def draw(self, context):
@@ -339,7 +340,7 @@ class AdvancedOptionsPanelSection3DEditor(PanelSection3D, Panel):
 class AdvancedOptionsPanelSectionImageEditor(PanelSectionImageEditor, Panel):
 
     bl_parent_id = DreamStudioImageEditorPanel.bl_idname
-    bl_label = "DreamStudio Options"
+    bl_label = "Input Options"
     bl_options = {"DEFAULT_CLOSED"}
 
     def draw(self, context):
@@ -385,7 +386,7 @@ def draw_advanced_options_panel(self, context):
     sampler_row.enabled = not use_recommended
 
 
-def render_render_options_panel(self, context, ui_context: UIContext):
+def draw_render_options_panel(self, context, ui_context: UIContext):
     layout = self.layout
     settings = context.scene.ds_settings
     use_custom_res = not settings.use_render_resolution

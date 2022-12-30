@@ -100,10 +100,12 @@ class InitType(Enum):
     TEXT = 1
     # From an image that is already on disk.
     TEXTURE = 2
+    # From an image that is already on disk.
+    DEPTH = 3
     # From an animation that is already on disk.
-    ANIMATION = 3
+    ANIMATION = 4
     # From the active viewport.
-    VIEWPORT = 4
+    VIEWPORT = 5
 
 
 # Which UI element are we operating from?
@@ -120,12 +122,18 @@ class OutputDisplayLocation(Enum):
 
 # Used to display the init source property in the UI
 INIT_TYPES = [
-    (InitType.TEXT.name, "Text Prompt Only", "", InitType.TEXT.value),
+    (InitType.TEXT.name, "None", "", InitType.TEXT.value),
     (
         InitType.TEXTURE.name,
         "Texture",
         "",
         InitType.TEXTURE.value,
+    ),
+    (
+        InitType.DEPTH.name,
+        "Depth",
+        "",
+        InitType.DEPTH.value,
     ),
     (
         InitType.ANIMATION.name,
@@ -257,6 +265,7 @@ class TrackingEvent(Enum):
     IMG2IMG = 2
     CANCEL_GENERATION = 3
     OPEN_WEB_URL = 4
+    DEPTH2IMG = 2
 
 
 TRACKED_GENERATION_PARAMS = [
@@ -305,7 +314,7 @@ def log_sentry_event(event: TrackingEvent):
     prefs = get_preferences()
     if prefs and not prefs.record_analytics:
         return
-    if not check_dependencies_installed():
+    if not check_dependencies_installed(False, prefs.record_analytics):
         return
     from sentry_sdk import capture_message, add_breadcrumb
 
@@ -344,3 +353,10 @@ class DSAccount:
     email: str
     user_id: str
     credits: float
+    logged_in: bool
+
+    def __init__(self) -> None:
+        self.email = ""
+        self.user_id = ""
+        self.credits = 0.0
+        self.logged_in = False

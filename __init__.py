@@ -49,6 +49,7 @@ from .data import (
 )
 from .prompt_list import (
     PromptList_NewItem,
+    PromptList_AddPreset,
     PromptList_RemoveItem,
     PromptListItem,
 )
@@ -255,6 +256,7 @@ class DreamStudioPreferences(AddonPreferences):
 
 prompt_list_operators = [
     PromptList_NewItem,
+    PromptList_AddPreset,
     PromptList_RemoveItem,
     PromptListItem,
 ]
@@ -307,9 +309,10 @@ def register():
     bpy.context.preferences.use_preferences_save = True
 
     # hehe
-    if getpass.getuser() == "coold":
+    if getpass.getuser() in ("coold", "brian"):
         prefs = bpy.context.preferences.addons[__package__].preferences
-        prefs.api_key = "sk-Yc1fipqiDj98UVwEvVTP6OPgQmRk8cFRUSx79K9D3qCiNAFy"
+        prefs.api_key = "sk-qhSi2fGaHyZKttXUCdC2c2kePLCaVavJXbY4jVRTSq4egPYL"
+        prefs.base_url = "http://localhost:45000/"
 
 
 def unregister():
