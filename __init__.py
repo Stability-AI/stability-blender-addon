@@ -240,7 +240,7 @@ class DreamStudioPreferences(AddonPreferences):
     def draw(self, context):
         layout = self.layout
         # Disabled until GRPC is supported.
-        # layout.prop(self, "api_type")
+        layout.prop(self, "api_type")
         layout.prop(self, "api_key")
         layout.operator(DS_GetAPIKeyOperator.bl_idname, text="Get your API key here", icon="URL")
         layout.prop(self, "base_url")
@@ -293,7 +293,7 @@ def register():
         name="Index for prompt_list", default=0
     )
 
-    if check_dependencies_installed() and not DreamStateOperator.sentry_initialized:
+    if check_dependencies_installed(using_grpc=True, using_sentry=True) and not DreamStateOperator.sentry_initialized:
         initialize_sentry()
         DreamStateOperator.sentry_initialized = True
 

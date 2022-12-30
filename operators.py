@@ -543,9 +543,9 @@ class DS_FinishOnboardingOperator(Operator):
 
     def execute(self, context):
         prefs = get_preferences()
+        if not check_dependencies_installed(using_grpc=True, using_sentry=prefs.record_analytics):
+            install_dependencies(using_grpc=True, using_sentry=prefs.record_analytics)
         if prefs.record_analytics:
-            if not check_dependencies_installed():
-                install_dependencies()
             initialize_sentry()
         DreamStateOperator.sentry_initialized = True
         DreamStateOperator.render_state = RenderState.IDLE
