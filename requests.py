@@ -125,6 +125,7 @@ def render_img2img_grpc(input_file_location, output_file_location, args, depth=F
     import stability_sdk.interfaces.gooseai.generation.generation_pb2 as generation
     from stability_sdk import client, interfaces
     from PIL import Image
+    import numpy as np
     import io
     from stability_sdk.utils import (
         SAMPLERS,
@@ -135,6 +136,7 @@ def render_img2img_grpc(input_file_location, output_file_location, args, depth=F
     )
 
     engine = "stable-diffusion-v1-5" if not depth else "stable-diffusion-depth-v2-0"
+    os.environ['STABILITY_HOST'] = args["base_url"]
 
     stability_inference = client.StabilityInference(
         key=args["api_key"], host=args["base_url"], engine=engine
@@ -165,17 +167,16 @@ def render_img2img_grpc(input_file_location, output_file_location, args, depth=F
     )
 
     # TODO handle errors in here more gracefully. Look at REST or SDK code
-    for answer in answers:
-        for artifact in answer.artifacts:
-            print("type", artifact.type, "finish reason", artifact.finish_reason)
+    for resp in answers:
+        for artifact in resp.artifacts:
             if (
                 artifact.finish_reason
-                == interfaces.gooseai.generation.generation_pb2.FILTER
+                == generation.generation_pb2.FILTER
             ):
                 return 401, "Safety filter hit"
             if (
                 artifact.type
-                == interfaces.gooseai.generation.generation_pb2.ARTIFACT_IMAGE
+                == generation.generation_pb2.ARTIFACT_IMAGE
             ):
                 res_img = Image.open(io.BytesIO(artifact.binary))
                 res_img.save(output_file_location)
