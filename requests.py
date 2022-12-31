@@ -13,11 +13,15 @@ def render_img2img(input_file_location, output_file_location, args, depth=False)
     api_type = APIType[preferences.api_type]
     if depth:
         log_sentry_event(TrackingEvent.DEPTH2IMG)
-        return render_depth2img_rest(input_file_location, output_file_location, args)
+        if api_type == APIType.REST:
+            return render_depth2img_rest(input_file_location, output_file_location, args)
+        elif api_type == APIType.GRPC:
+            # HACK for now, the grpc server accepts depth as init_image
+            return render_img2img_grpc(input_file_location, output_file_location, args, depth=True)
     log_sentry_event(TrackingEvent.IMG2IMG)
     if api_type == APIType.REST:
         return render_img2img_rest(input_file_location, output_file_location, args)
-    if api_type == APIType.GRPC:
+    elif api_type == APIType.GRPC:
         return render_img2img_grpc(input_file_location, output_file_location, args)
 
 
@@ -116,8 +120,9 @@ def render_depth2img_rest(input_file_location, output_file_location, args):
     return response.status_code, msg
 
 
-def render_img2img_grpc(input_file_location, output_file_location, args):
+def render_img2img_grpc(input_file_location, output_file_location, args, depth=False):
 
+    import stability_sdk.interfaces.gooseai.generation.generation_pb2 as generation
     from stability_sdk import client, interfaces
     from PIL import Image
     import io
@@ -129,21 +134,25 @@ def render_img2img_grpc(input_file_location, output_file_location, args):
         open_images,
     )
 
+    engine = "stable-diffusion-v1-5" if not depth else "stable-diffusion-depth-v2-0"
+
     stability_inference = client.StabilityInference(
-        key=args["api_key"], host=args["base_url"]
+        key=args["api_key"], host=args["base_url"], engine=engine
     )
 
     sampler = get_sampler_from_str(args["sampler"])
     init_img = Image.open(input_file_location)
     res_img = None
     seed = random.randrange(0, 4294967295) if args["seed"] is None else args["seed"]
-    if MULTIPROMPT_ENABLED:
-        prompts = args["prompts"]
-    else:
-        prompts = args["prompts"][0]["text"]
+    prompt_protos = []
+    for p in args["prompts"]:
+        prompt_proto = generation.Prompt(text=p["text"]) 
+        prompt_params = prompt_proto.parameters
+        prompt_params.weight = p["weight"]
+        prompt_protos.append(prompt_proto)
     frame_seed = seed
     answers = stability_inference.generate(
-        prompt=prompts,
+        prompt=prompt_protos,
         init_image=init_img,
         width=init_img.width if init_img is not None else args["width"],
         height=init_img.height if init_img is not None else args["height"],
@@ -271,6 +280,7 @@ def log_analytics_event(
         )
 
 def get_account_details(base_url: str, api_key: str) -> DSAccount:
+
     
     user = DSAccount()
     

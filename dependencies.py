@@ -7,7 +7,7 @@ import tarfile
 import sysconfig
 
 
-def install_dependencies(using_grpc: bool, using_sentry: bool) -> None:
+def install_dependencies(using_grpc: bool = True, using_sentry: bool=True) -> None:
     ensurepip.bootstrap()
     os.environ.pop("PIP_REQ_TRACKER", None)
     env = os.environ.copy()
@@ -22,10 +22,9 @@ def install_dependencies(using_grpc: bool, using_sentry: bool) -> None:
         res = subprocess.run(
             [sys.executable, "-m", "pip", "install", dep_name], env=env
         )
-        print(res.stdout)
 
 
-def check_dependencies_installed(using_grpc: bool, using_sentry: bool) -> bool:
+def check_dependencies_installed(using_grpc: bool = True, using_sentry: bool = True) -> bool:
     try:
         if using_grpc:
             import stability_sdk

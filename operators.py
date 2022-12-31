@@ -165,7 +165,7 @@ class GeneratorWorker(Thread):
             DreamStateOperator.render_state = RenderState.IDLE
             DreamStateOperator.reset_render_state()
             DreamStateOperator.kill_render_thread()
-            if check_dependencies_installed(using_grpc=False, using_sentry=True):
+            if check_dependencies_installed():
                 from sentry_sdk import capture_exception
 
                 capture_exception(e)
@@ -201,7 +201,7 @@ class GeneratorWorker(Thread):
                         init_img_path
                     )
                 )
-            status, reason = render_img2img(init_img_path, output_file_path, args)
+            status, reason = render_img2img(init_img_path, output_file_path, args, depth=self.init_type == InitType.DEPTH)
             if status != 200:
                 raise Exception("Error generating image: {} {}".format(status, reason))
             DreamStateOperator.render_state = RenderState.FINISHED
@@ -358,7 +358,6 @@ class DreamRenderOperator(Operator):
         init_img_path = rendered_dir + "/init.png"
 
         init_image_width, init_image_height = get_init_image_dimensions(settings, scene)
-        render_file_path = scene.render.filepath
         init_img_paths = []
 
         if DreamStateOperator.rendering_from_viewport:
@@ -384,11 +383,8 @@ class DreamRenderOperator(Operator):
                 init_image.save_render(init_img_path)
             init_img_paths = [init_img_path]
 
-        if init_type == InitType.TEXTURE:
-            init_img_paths = [render_file_path]
-
         # Render 3D view
-        if init_type == InitType.VIEWPORT:
+        if init_type in (InitType.VIEWPORT, InitType.DEPTH):
 
             scene.render.filepath = init_img_path
             workspace = bpy.context.workspace.name
@@ -543,8 +539,8 @@ class DS_FinishOnboardingOperator(Operator):
 
     def execute(self, context):
         prefs = get_preferences()
-        if not check_dependencies_installed(using_grpc=False, using_sentry=prefs.record_analytics):
-            install_dependencies(using_grpc=False, using_sentry=prefs.record_analytics)
+        if not check_dependencies_installed(using_sentry=prefs.record_analytics):
+            install_dependencies(using_sentry=prefs.record_analytics)
         if prefs.record_analytics:
             initialize_sentry()
         DreamStateOperator.sentry_initialized = True

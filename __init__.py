@@ -273,10 +273,10 @@ registered_operators = [
     DS_SceneRenderViewportOperator,
     DreamStateOperator,
     DreamStudio3DPanel,
-    AdvancedOptionsPanelSection3DEditor,
-    AdvancedOptionsPanelSectionImageEditor,
     RenderOptionsPanelSection3DEditor,
     RenderOptionsPanelSectionImageEditor,
+    AdvancedOptionsPanelSection3DEditor,
+    AdvancedOptionsPanelSectionImageEditor,
     DS_FinishOnboardingOperator,
     DS_GetAPIKeyOperator,
     DS_OpenOutputFolderOperator,
@@ -312,7 +312,8 @@ def register():
     if getpass.getuser() in ("coold", "brian"):
         prefs = bpy.context.preferences.addons[__package__].preferences
         prefs.api_key = "sk-qhSi2fGaHyZKttXUCdC2c2kePLCaVavJXbY4jVRTSq4egPYL"
-        prefs.base_url = "http://localhost:45000/"
+        prefs.base_url = "grpc-brian.stability.ai:443"
+        prefs.api_type = APIType.GRPC.name
 
 
 def unregister():

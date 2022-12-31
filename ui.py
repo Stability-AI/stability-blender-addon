@@ -102,6 +102,12 @@ def render_links_row(layout):
     links_row.operator(DS_LogIssueOperator.bl_idname, text="Log Issue", icon="QUESTION")
 
 
+def render_init_type(layout, settings):
+    row = layout.row()
+    row.use_property_split = False
+    row.use_property_decorate = False
+    row.prop(settings, "init_type")
+
 def render_output_location_row(layout, settings):
     output_location_row = layout.row()
     output_location_row.alignment = "EXPAND"
@@ -152,7 +158,6 @@ class DreamStudioImageEditorPanel(PanelSectionImageEditor, Panel):
         render_prompt_list(context.scene, layout)
 
         render_dream_row(layout, settings, scene, UIContext.IMAGE_EDITOR)
-        render_links_row(layout)
 
 
 # UI for the scene view panel.
@@ -174,6 +179,7 @@ class DreamStudio3DPanel(Panel):
 
         addon_updater_ops.update_notice_box_ui(self, context)
 
+
         if preferences and (not preferences.api_key or preferences.api_key == ""):
             DreamStateOperator.render_state = RenderState.ONBOARDING
 
@@ -189,11 +195,10 @@ class DreamStudio3DPanel(Panel):
         render_prompt_list(scene, layout)
 
         render_dream_row(layout, settings, scene, UIContext.SCENE_VIEW)
-        render_links_row(layout)
 
 TITLES = {
     InitType.ANIMATION.value: "Dream (Animation)",
-    InitType.TEXT.value: "Dream (Text)",
+    InitType.TEXT.value: "Dream (Prompt Only)",
     InitType.TEXTURE.value: "Dream (Texture)",
     InitType.DEPTH.value: "Dream (Depth Map)",
 }
@@ -394,7 +399,7 @@ def draw_render_options_panel(self, context, ui_context: UIContext):
     if DreamStateOperator.render_state == RenderState.ONBOARDING:
         return
 
-    layout.prop(settings, "init_type")
+    render_init_type(layout, settings)
 
     if init_type != InitType.TEXT:
         layout.prop(settings, "init_strength")

@@ -23,7 +23,7 @@ class PromptList_NewItem(Operator):
     """Add a new item to the list."""
 
     bl_idname = "prompt_list.new_item"
-    bl_label = "Add"
+    bl_label = "Empty"
 
     def execute(self, context):
         context.scene.prompt_list.add()
