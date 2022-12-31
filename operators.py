@@ -22,6 +22,8 @@ from threading import Thread
 import time
 import webbrowser
 from bpy.app.handlers import persistent
+from bpy_extras import view3d_utils
+from texture_gen import generate_uv_map
 
 from .data import (
     DSAccount,
@@ -264,7 +266,6 @@ class GeneratorWorker(Thread):
         if self.running:
             DreamStateOperator.render_state = RenderState.FINISHED
 
-
 # Sets up the init image / animation, as well as setting all DreamStateOperator state that is passed to
 # the generation thread.
 class DreamRenderOperator(Operator):
@@ -288,6 +289,10 @@ class DreamRenderOperator(Operator):
         if DreamStateOperator.render_state == RenderState.FINISHED:
             DreamStateOperator.account = get_account_details(prefs.base_url, prefs.api_key)
             DreamStateOperator.last_account_check_time = time.time()
+
+            if init_type == InitType.DEPTH:
+                generate_uv_map(context)
+
             DreamStateOperator.render_state = RenderState.IDLE
             image_tex_area = None
             for area in bpy.context.screen.areas:
@@ -386,25 +391,37 @@ class DreamRenderOperator(Operator):
         # Render 3D view
         if init_type in (InitType.VIEWPORT, InitType.DEPTH):
 
-            scene.render.filepath = init_img_path
-            workspace = bpy.context.workspace.name
-            # tmp_show_overlay = bpy.data.screens[workspace].overlay.show_overlays
-            # bpy.data.screens[workspace].overlay.show_overlays = False
+            overlay_spaces = []
+            prev_w, prev_h = scene.render.resolution_x, scene.render.resolution_y
+            tmp_w, tmp_h = init_image_width, init_image_height
+            for area in context.screen.areas:
+                if area.type == 'VIEW_3D':
+                    for region in area.regions:
+                        if region.type == 'WINDOW':
+                            tmp_w, tmp_h = region.width, region.height
+                    for space in area.spaces:
+                        if space.type == 'VIEW_3D':
+                            if space.overlay.show_overlays:
+                                overlay_spaces.append(space)
 
-            tmp_w, tmp_h = scene.render.resolution_x, scene.render.resolution_y
-            scene.render.resolution_x = init_image_width
-            scene.render.resolution_y = init_image_height
+            for space in overlay_spaces:
+                space.overlay.show_overlays = False
+            scene.render.filepath = init_img_path
+            scene.render.resolution_x = tmp_w
+            scene.render.resolution_y = tmp_h
             res = bpy.ops.render.opengl(
                 write_still=True, animation=False, view_context=True
             )
-            scene.render.resolution_x = tmp_w
-            scene.render.resolution_y = tmp_h
-            # bpy.data.screens[workspace].overlay.show_overlays = tmp_show_overlay
+            scene.render.resolution_x = prev_w
+            scene.render.resolution_y = prev_h
 
             init_img_paths = [init_img_path]
+            for space in overlay_spaces:
+                space.overlay.show_overlays = True
 
             if res != {"FINISHED"}:
                 raise Exception("Failed to render: {}".format(res))
+                
         elif init_type == InitType.ANIMATION:
             init_img_paths, frame_path = get_anim_images()
         DreamStateOperator.generator_thread = GeneratorWorker(
