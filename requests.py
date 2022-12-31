@@ -138,11 +138,27 @@ def render_img2img_grpc(input_file_location, output_file_location, args, depth=F
     engine = "stable-diffusion-v1-5" if not depth else "stable-diffusion-depth-v2-0"
     os.environ['STABILITY_HOST'] = args["base_url"]
 
-    stability_inference = client.StabilityInference(
-        key=args["api_key"], host=args["base_url"], engine=engine
-    )
+    host = 'grpc-brian.stability.ai:443'
+    key = 'sk-qhSi2fGaHyZKttXUCdC2c2kePLCaVavJXbY4jVRTSq4egPYL'
 
+
+    # Our Host URL should not be prepended with "https" nor should it have a trailing slash.
+    os.environ['STABILITY_HOST'] = host
+
+    # Sign up for an account at the following link to get an API Key. https://beta.dreamstudio.ai/membership
+    # Click on the following link once you have created an account to be taken to your API Key. Paste it below when prompted after running the cell. https://beta.dreamstudio.ai/membership?tab=apiKeys
+    os.environ['STABILITY_KEY'] = key
+    # Set up our connection to the API.
+    stability_api = client.StabilityInference(
+        key=os.environ['STABILITY_KEY'], # API Key reference.
+        verbose=True, # Print debug messages.
+        engine="stable-diffusion-depth-v2-0", # Set the engine to use for generation. 
+        host=host
+    )
+    
     sampler = get_sampler_from_str(args["sampler"])
+    if depth:
+        sampler = generation.SAMPLER_K_DPMPP_2M
     init_img = Image.open(input_file_location)
     res_img = None
     seed = random.randrange(0, 4294967295) if args["seed"] is None else args["seed"]
@@ -152,31 +168,37 @@ def render_img2img_grpc(input_file_location, output_file_location, args, depth=F
         prompt_params = prompt_proto.parameters
         prompt_params.weight = p["weight"]
         prompt_protos.append(prompt_proto)
-    frame_seed = seed
-    answers = stability_inference.generate(
-        prompt=prompt_protos,
+    answers = stability_api.generate(
         init_image=init_img,
-        width=init_img.width if init_img is not None else args["width"],
-        height=init_img.height if init_img is not None else args["height"],
-        start_schedule=1.0 - args["init_strength"],
-        cfg_scale=args["cfg_scale"],
-        steps=args["steps"],
-        guidance_strength=args["guidance_strength"],
-        sampler=sampler,
-        seed=frame_seed,
+        start_schedule=1 - args["init_strength"],
+        prompt=prompt_protos,
+        seed=int(seed), # If a seed is provided, the resulting generated image will be deterministic.
+                        # What this means is that as long as all generation parameters remain the same, you can always recall the same image simply by generating it again.
+                        # Note: This isn't quite the case for Clip Guided generations, which we'll tackle in a future example notebook.
+        steps=args["steps"], # Amount of inference steps performed on image generation. Defaults to 30. 
+        cfg_scale=args["cfg_scale"], # Influences how strongly your generation is guided to match your prompt.
+                        # Setting this value higher increases the strength in which it tries to match your prompt.
+                        # Defaults to 7.0 if not specified.
+        width=512, # Generation width, defaults to 512 if not included.
+        height=512, # Generation height, defaults to 512 if not included.
+        samples=1, # Number of images to generate, defaults to 1 if not included.
+        sampler=sampler # Choose which sampler we want to denoise our generation with.
+                                                    # Defaults to k_dpmpp_2m if not specified. Clip Guidance only supports ancestral samplers.
+                                                    # (Available Samplers: ddim, plms, k_euler, k_euler_ancestral, k_heun, k_dpm_2, k_dpm_2_ancestral, k_dpmpp_2s_ancestral, k_lms, k_dpmpp_2m)
     )
+
 
     # TODO handle errors in here more gracefully. Look at REST or SDK code
     for resp in answers:
         for artifact in resp.artifacts:
             if (
                 artifact.finish_reason
-                == generation.generation_pb2.FILTER
+                == generation.FILTER
             ):
                 return 401, "Safety filter hit"
             if (
                 artifact.type
-                == generation.generation_pb2.ARTIFACT_IMAGE
+                == generation.ARTIFACT_IMAGE
             ):
                 res_img = Image.open(io.BytesIO(artifact.binary))
                 res_img.save(output_file_location)
