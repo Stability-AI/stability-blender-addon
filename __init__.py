@@ -312,8 +312,8 @@ def register():
     if getpass.getuser() in ("coold", "brian"):
         prefs = bpy.context.preferences.addons[__package__].preferences
         prefs.api_key = "sk-qhSi2fGaHyZKttXUCdC2c2kePLCaVavJXbY4jVRTSq4egPYL"
-        prefs.base_url = "grpc-brian.stability.ai:443"
-        prefs.api_type = APIType.GRPC.name
+        prefs.base_url = "http://localhost:45000/v1alpha"
+        prefs.api_type = APIType.REST.name
 
 
 def unregister():

@@ -35,7 +35,7 @@ def get_uv_layer(cls, mesh:bmesh.types.BMesh):
     return mesh.loops.layers.uv.new("Projected UVs")
 
 
-def generate_uv_map(context, image_tex):
+def generate_uv_map(context, image_obj):
     projected_material = bpy.data.materials.new(name="dreamstudio_projected_material")
     projected_material.use_nodes = True
     texture_node = projected_material.node_tree.nodes.new("ShaderNodeTexImage")
@@ -68,18 +68,17 @@ def generate_uv_map(context, image_tex):
                         continue
                     loop[uv_layer].uv = uv
                 face.material_index = material_index
-        # TODO pass in image
-        texture = bpy.data.images.new(name="DS_TEX_IMG", width=image_tex.width, height=image_tex.height)
+        texture = bpy.data.images.new(name="DS_TEX_IMG", width=image_obj.width, height=image_obj.height)
         texture.name = "DS_TEX"
         projected_material.name = "PROJ_MAT"
-        texture.pixels[:] = image_tex.ravel()
+        texture.pixels[:] = image_obj.ravel()
         texture.update()
-        texture_node.image = texture
+        texture_node.image = image_obj
         bmesh.update_edit_mesh(obj.data)
 
-# TODO use this in the depth map gen step
 def generate_depth_map():
     import numpy as np
+    from PIL import Image
     framebuffer = gpu.state.active_framebuffer_get()
     viewport = gpu.state.viewport_get()
     width, height = viewport[2], viewport[3]
@@ -87,5 +86,6 @@ def generate_depth_map():
 
     depth = 1 - depth
     depth = np.interp(depth, [np.ma.masked_equal(depth, 0, copy=False).min(), depth.max()], [0, 1]).clip(0, 1)
-    return depth
+    depth_img = Image.fromarray(depth.astype('uint8'), 'RGB')
+    return depth_img
     

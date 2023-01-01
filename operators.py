@@ -23,7 +23,7 @@ import time
 import webbrowser
 from bpy.app.handlers import persistent
 from bpy_extras import view3d_utils
-from texture_gen import generate_uv_map
+from .texture_gen import generate_depth_map, generate_uv_map
 
 from .data import (
     DSAccount,
@@ -291,7 +291,10 @@ class DreamRenderOperator(Operator):
             DreamStateOperator.last_account_check_time = time.time()
 
             if init_type == InitType.DEPTH:
-                generate_uv_map(context)
+                rendered_image = bpy.data.images.load(
+                    DreamStateOperator.last_rendered_image_path
+                )
+                generate_uv_map(context, rendered_image)
 
             DreamStateOperator.render_state = RenderState.IDLE
             image_tex_area = None
@@ -388,8 +391,13 @@ class DreamRenderOperator(Operator):
                 init_image.save_render(init_img_path)
             init_img_paths = [init_img_path]
 
+        # if init_type == InitType.DEPTH:
+        #     depth_map_img = generate_depth_map()
+        #     depth_map_img.save(init_img_path)
+        #     init_img_paths = [init_img_path]
+
         # Render 3D view
-        if init_type in (InitType.VIEWPORT, InitType.DEPTH):
+        if init_type == InitType.VIEWPORT or init_type == InitType.DEPTH:
 
             overlay_spaces = []
             prev_w, prev_h = scene.render.resolution_x, scene.render.resolution_y

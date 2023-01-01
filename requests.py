@@ -14,7 +14,7 @@ def render_img2img(input_file_location, output_file_location, args, depth=False)
     if depth:
         log_sentry_event(TrackingEvent.DEPTH2IMG)
         if api_type == APIType.REST:
-            return render_depth2img_rest(input_file_location, output_file_location, args)
+            return render_img2img_rest(input_file_location, output_file_location, args, depth=True)
         elif api_type == APIType.GRPC:
             # HACK for now, the grpc server accepts depth as init_image
             return render_img2img_grpc(input_file_location, output_file_location, args, depth=True)
@@ -25,13 +25,16 @@ def render_img2img(input_file_location, output_file_location, args, depth=False)
         return render_img2img_grpc(input_file_location, output_file_location, args)
 
 
-def render_img2img_rest(input_file_location, output_file_location, args):
+def render_img2img_rest(input_file_location, output_file_location, args, depth=False):
     seed = random.randrange(0, 4294967295) if args["seed"] is None else args["seed"]
+    clip_guidance = args["clip_guidance_preset"]
+    if depth:
+        clip_guidance = "NONE"
     all_options = {
         "cfg_scale": args["cfg_scale"],
-        "clip_guidance_preset": args["clip_guidance_preset"],
+        "clip_guidance_preset": clip_guidance,
         "height": 512,
-        "sampler": "K_DPM_2_ANCESTRAL",
+        "sampler": "K_DPMPP_2M",
         "seed": seed,
         "step_schedule_end": 0.01,
         "step_schedule_start": 1.0 - args["init_strength"],
@@ -41,59 +44,13 @@ def render_img2img_rest(input_file_location, output_file_location, args):
     }
 
     base_url = args["base_url"]
-    url = f"{base_url}/generation/stable-diffusion-v1-5/image-to-image"
+    engine = "stable-diffusion-v1-5" if not depth else "stable-diffusion-depth-v2-0"
+    url = f"{base_url}/generation/{engine}/image-to-image"
 
     payload = {"options": json.dumps(all_options)}
     files = [
         (
             "init_image",
-            ("render_0001.png", open(input_file_location, "rb"), "image/png"),
-        )
-    ]
-    headers = {
-        "accept": "image/png",
-        "Authorization": args["api_key"],
-    }
-
-    response = requests.request("POST", url, headers=headers, data=payload, files=files)
-
-    msg = response.reason
-
-    if response.status_code in (200, 201):
-        res_img = response.content
-        with open(output_file_location, "wb") as res_img_file:
-            res_img_file.write(res_img)
-    else:
-        try:
-            res_body = response.json()
-            msg = res_body["message"]
-            print(msg)
-        except json.JSONDecodeError:
-            print(response.text)
-    return response.status_code, msg
-
-def render_depth2img_rest(input_file_location, output_file_location, args):
-    seed = random.randrange(0, 4294967295) if args["seed"] is None else args["seed"]
-    all_options = {
-        "cfg_scale": args["cfg_scale"],
-        "clip_guidance_preset": args["clip_guidance_preset"],
-        "height": 512,
-        "sampler": "K_DPM_2_ANCESTRAL",
-        "seed": seed,
-        "step_schedule_end": 0.01,
-        "step_schedule_start": 1.0 - args["init_strength"],
-        "steps": args["steps"],
-        "text_prompts": args["prompts"],
-        "width": 512,
-    }
-
-    base_url = args["base_url"]
-    url = f"{base_url}/generation/stable-diffusion-depth-v2-0/depth-to-image"
-
-    payload = {"options": json.dumps(all_options)}
-    files = [
-        (
-            "depth_image",
             ("render_0001.png", open(input_file_location, "rb"), "image/png"),
         )
     ]
@@ -152,7 +109,7 @@ def render_img2img_grpc(input_file_location, output_file_location, args, depth=F
     stability_api = client.StabilityInference(
         key=os.environ['STABILITY_KEY'], # API Key reference.
         verbose=True, # Print debug messages.
-        engine="stable-diffusion-depth-v2-0", # Set the engine to use for generation. 
+        engine=engine, # Set the engine to use for generation. 
         host=host
     )
     
