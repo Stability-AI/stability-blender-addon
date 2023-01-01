@@ -125,7 +125,7 @@ class DreamStudioSettings(bpy.types.PropertyGroup):
     # uint32 max value
     seed: IntProperty(
         name="Seed",
-        default=0,
+        default=1027483647,
         min=0,
         max=2147483647,
         description="The seed fixes which random numbers are used for the diffusion process. This allows you to reproduce the same results for the same input frame. May also help with consistency across frames if you are rendering an animation",

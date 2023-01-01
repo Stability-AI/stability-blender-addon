@@ -24,18 +24,19 @@ import webbrowser
 from bpy.app.handlers import persistent
 from bpy_extras import view3d_utils
 import gpu
+
 PROJECTED_UV_NAME = "DreamStudioUVMap"
 
-def get_uv_layer(cls, mesh:bmesh.types.BMesh):
+def get_uv_layer(mesh:bmesh.types.BMesh):
     for i in range(len(mesh.loops.layers.uv)):
         uv = mesh.loops.layers.uv[i]
-        if uv.name.lower() == "projected uvs":
+        if uv.name.lower() == PROJECTED_UV_NAME.lower():
             return uv
         
-    return mesh.loops.layers.uv.new("Projected UVs")
+    return mesh.loops.layers.uv.new(PROJECTED_UV_NAME)
 
 
-def generate_uv_map(context, image_obj):
+def generate_uv_map(context, image_tex):
     projected_material = bpy.data.materials.new(name="dreamstudio_projected_material")
     projected_material.use_nodes = True
     texture_node = projected_material.node_tree.nodes.new("ShaderNodeTexImage")
@@ -68,12 +69,8 @@ def generate_uv_map(context, image_obj):
                         continue
                     loop[uv_layer].uv = uv
                 face.material_index = material_index
-        texture = bpy.data.images.new(name="DS_TEX_IMG", width=image_obj.width, height=image_obj.height)
-        texture.name = "DS_TEX"
         projected_material.name = "PROJ_MAT"
-        texture.pixels[:] = image_obj.ravel()
-        texture.update()
-        texture_node.image = image_obj
+        texture_node.image = image_tex
         bmesh.update_edit_mesh(obj.data)
 
 def generate_depth_map():
@@ -82,7 +79,8 @@ def generate_depth_map():
     framebuffer = gpu.state.active_framebuffer_get()
     viewport = gpu.state.viewport_get()
     width, height = viewport[2], viewport[3]
-    depth = np.array(framebuffer.read_depth(0, 0, width, height).to_list())
+    fb_list = framebuffer.read_depth(0, 0, width, height).to_list()
+    depth = np.array(fb_list)
 
     depth = 1 - depth
     depth = np.interp(depth, [np.ma.masked_equal(depth, 0, copy=False).min(), depth.max()], [0, 1]).clip(0, 1)

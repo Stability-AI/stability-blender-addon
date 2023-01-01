@@ -370,9 +370,10 @@ class DreamRenderOperator(Operator):
 
         if DreamStateOperator.rendering_from_viewport:
             init_type = InitType.VIEWPORT
+            DreamStateOperator.rendering_from_viewport = False
 
         # If we are in the image editor, we need to save the image to a temporary file to use for init
-        if init_type == InitType.TEXTURE:
+        if init_type in (InitType.TEXTURE, InitType.DEPTH):
             img = settings.init_texture_ref
             if not img:
                 raise Exception("No init texture set")
@@ -391,13 +392,8 @@ class DreamRenderOperator(Operator):
                 init_image.save_render(init_img_path)
             init_img_paths = [init_img_path]
 
-        # if init_type == InitType.DEPTH:
-        #     depth_map_img = generate_depth_map()
-        #     depth_map_img.save(init_img_path)
-        #     init_img_paths = [init_img_path]
-
         # Render 3D view
-        if init_type == InitType.VIEWPORT or init_type == InitType.DEPTH:
+        if init_type == InitType.VIEWPORT:
 
             overlay_spaces = []
             prev_w, prev_h = scene.render.resolution_x, scene.render.resolution_y

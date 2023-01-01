@@ -404,7 +404,7 @@ def draw_render_options_panel(self, context, ui_context: UIContext):
     if init_type != InitType.TEXT:
         layout.prop(settings, "init_strength")
 
-    if init_type == InitType.TEXTURE:
+    if init_type in (InitType.TEXTURE, InitType.DEPTH):
         layout.template_ID(
             settings, "init_texture_ref", open="image.open", new="image.new"
         )
