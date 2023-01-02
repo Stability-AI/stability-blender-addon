@@ -34,8 +34,29 @@ def getArea(type):
             if area.type == type:
                 return area
 
+# Set up compositor to render depth map, and render it.
+# TODO We want to create a new compositor layer and switch back to the user's when finished.
+def render_depth_map(context):
+    bpy.context.scene.use_nodes = True
+    bpy.context.scene.render.use_compositing = True
+    tree = bpy.context.scene.node_tree
+    # links = tree.links
+    # rl = tree.nodes.new(type="CompositorNodeRLayers")
+
+    # # Depth map
+    # fileDepthOutput = tree.nodes.new(type="CompositorNodeOutputFile")
+    # fileDepthOutputSocket = fileDepthOutput.file_slots.new("out")
+    # links.new(rl.outputs['Depth'], fileDepthOutputSocketwrite_still=False)
+
+    # Launch the rendering.
+    bpy.ops.render.render(write_still=False)
+
 
 def generate_uv_map(context, image_tex):
+
+
+    bpy.context.scene.view_layers["ViewLayer"].use_pass_z = True
+    # create shader
     projected_material = bpy.data.materials.new(name="dreamstudio_projected_material")
     projected_material.use_nodes = True
     texture_node = projected_material.node_tree.nodes.new("ShaderNodeTexImage")
@@ -46,18 +67,19 @@ def generate_uv_map(context, image_tex):
     projected_material.name = MATERIAL_NAME
     texture_node.image = image_tex
 
-    area = None
+    selected_screen_area = None
 
     for screen_area in bpy.context.screen.areas:
         if screen_area.type == 'VIEW_3D':
             for region in screen_area.regions:
                 if region.type == 'WINDOW':
-                    area = screen_area
+                    selected_screen_area = screen_area
 
     for ns3d in getArea('VIEW_3D').spaces:
         if ns3d.type == "VIEW_3D":
             break
 
+    # apply uv
     for b_obj in bpy.context.selected_objects:
         if b_obj.type != "MESH" or not hasattr(b_obj, "data"):
             continue
@@ -90,7 +112,7 @@ def generate_uv_map(context, image_tex):
         mesh.loops.layers.uv.new(PROJECTED_UV_NAME)
         b_obj.data.materials.append(projected_material)
         # create new uv map
-        override = {'area': area, 'region': context.region, 'edit_object': b_obj}
+        override = {'area': selected_screen_area, 'region': context.region, 'edit_object': b_obj}
         bpy.ops.uv.project_from_view(override , camera_bounds=False, correct_aspect=True)
         for face in mesh.faces:
             face.material_index = len(b_obj.material_slots)

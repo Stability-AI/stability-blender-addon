@@ -23,7 +23,7 @@ import time
 import webbrowser
 from bpy.app.handlers import persistent
 from bpy_extras import view3d_utils
-from .texture_gen import generate_depth_map, generate_uv_map
+from .texture_gen import generate_depth_map, generate_uv_map, render_depth_map
 import gpu
 
 from .data import (
@@ -44,7 +44,12 @@ from .data import (
     log_sentry_event,
 )
 from .dependencies import install_dependencies, check_dependencies_installed
-from .requests import get_account_details, log_analytics_event, render_img2img, render_text2img
+from .requests import (
+    get_account_details,
+    log_analytics_event,
+    render_img2img,
+    render_text2img,
+)
 import multiprocessing as mp
 import threading
 from glob import glob
@@ -205,7 +210,9 @@ class GeneratorWorker(Thread):
                         init_img_path
                     )
                 )
-            status, reason = render_img2img(init_img_path, output_file_path, args, using_depth_map=using_depth_map)
+            status, reason = render_img2img(
+                init_img_path, output_file_path, args, using_depth_map=using_depth_map
+            )
             if status != 200:
                 raise Exception("Error generating image: {} {}".format(status, reason))
             DreamStateOperator.render_state = RenderState.FINISHED
@@ -219,7 +226,9 @@ class GeneratorWorker(Thread):
                         init_img_path
                     )
                 )
-            status, reason = render_img2img(input_img_path, output_file_path, args, using_depth_map=False)
+            status, reason = render_img2img(
+                input_img_path, output_file_path, args, using_depth_map=False
+            )
             if status != 200:
                 raise Exception("Error generating image: {} {}".format(status, reason))
         elif self.init_type == InitType.ANIMATION:
@@ -236,18 +245,18 @@ class GeneratorWorker(Thread):
                     or DreamStateOperator.render_state == RenderState.CANCELLED
                 ):
                     return
-                print('frame set', i + 1)
+                print("frame set", i + 1)
                 scene.frame_set(i + 1)
-                print('did set frame')
+                print("did set frame")
                 DreamStateOperator.render_start_time = time.time()
                 args = format_rest_args(settings, scene.prompt_list)
-                print('args', args)
+                print("args", args)
                 output_file_path = os.path.join(
                     self.output_img_directory, f"result_{i}.png"
                 )
-                print('rendering frame', i, frame_img_file, output_file_path)
+                print("rendering frame", i, frame_img_file, output_file_path)
                 rendered_image = bpy.data.images.load(frame_img_file)
-                print('scaling frame', i, init_image_width, init_image_height)
+                print("scaling frame", i, init_image_width, init_image_height)
                 rendered_image.scale(init_image_width, init_image_height)
                 DreamStateOperator.current_frame_idx = i + 1
                 print(
@@ -255,7 +264,9 @@ class GeneratorWorker(Thread):
                     DreamStateOperator.render_state,
                 )
                 # We need to actually set Blender to a certain frame to evaluate all the keyframe values for that frame.
-                status, reason = render_img2img(frame_img_file, output_file_path, args, using_depth_map)
+                status, reason = render_img2img(
+                    frame_img_file, output_file_path, args, using_depth_map
+                )
                 print("rendered frame", i, status, reason, output_file_path)
                 if status != 200:
                     raise Exception(
@@ -266,6 +277,7 @@ class GeneratorWorker(Thread):
         DreamStateOperator.rendering_from_viewport = False
         if self.running:
             DreamStateOperator.render_state = RenderState.FINISHED
+
 
 # Sets up the init image / animation, as well as setting all DreamStateOperator state that is passed to
 # the generation thread.
@@ -289,7 +301,9 @@ class DreamRenderOperator(Operator):
             return {"FINISHED"}
 
         if DreamStateOperator.render_state == RenderState.FINISHED:
-            DreamStateOperator.account = get_account_details(prefs.base_url, prefs.api_key)
+            DreamStateOperator.account = get_account_details(
+                prefs.base_url, prefs.api_key
+            )
             DreamStateOperator.last_account_check_time = time.time()
 
             if apply_texture_to_selected_mesh:
@@ -299,29 +313,30 @@ class DreamRenderOperator(Operator):
                 generate_uv_map(context, rendered_image)
 
             DreamStateOperator.render_state = RenderState.IDLE
-            if output_location == OutputDisplayLocation.TEXTURE_VIEW and init_type != InitType.ANIMATION and not apply_texture_to_selected_mesh:
-                image_tex_area = None
-                for area in bpy.context.screen.areas:
-                    if area.type == "IMAGE_EDITOR":
-                        image_tex_area = area
-                rendered_image = bpy.data.images.load(
-                    DreamStateOperator.last_rendered_image_path
-                )
-                if image_tex_area:
-                    image_tex_area.spaces.active.image = copy_image(rendered_image)
-                else:
-                    # Create a new image editor area
-                    bpy.ops.screen.userpref_show("INVOKE_DEFAULT")
-                    image_tex_area = bpy.context.window_manager.windows[
-                        -1
-                    ].screen.areas[0]
-                    image_tex_area.type = "IMAGE_EDITOR"
-                    image_tex_area.spaces.active.image = copy_image(rendered_image)
-            elif (
-                output_location == OutputDisplayLocation.FILE_SYSTEM
-                or ui_context == UIContext.SCENE_VIEW
-            ):
-                open_folder(DreamStateOperator.generated_output_dir)
+            if init_type != InitType.ANIMATION and not apply_texture_to_selected_mesh:
+                if output_location == OutputDisplayLocation.TEXTURE_VIEW:
+                    image_tex_area = None
+                    for area in bpy.context.screen.areas:
+                        if area.type == "IMAGE_EDITOR":
+                            image_tex_area = area
+                    rendered_image = bpy.data.images.load(
+                        DreamStateOperator.last_rendered_image_path
+                    )
+                    if image_tex_area:
+                        image_tex_area.spaces.active.image = copy_image(rendered_image)
+                    else:
+                        # Create a new image editor area
+                        bpy.ops.screen.userpref_show("INVOKE_DEFAULT")
+                        image_tex_area = bpy.context.window_manager.windows[
+                            -1
+                        ].screen.areas[0]
+                        image_tex_area.type = "IMAGE_EDITOR"
+                        image_tex_area.spaces.active.image = copy_image(rendered_image)
+                elif (
+                    output_location == OutputDisplayLocation.FILE_SYSTEM
+                    or ui_context == UIContext.SCENE_VIEW
+                ):
+                    open_folder(DreamStateOperator.generated_output_dir)
 
         if DreamStateOperator.render_state == RenderState.IDLE:
             return {"FINISHED"}
@@ -373,6 +388,11 @@ class DreamRenderOperator(Operator):
         if DreamStateOperator.rendering_from_viewport:
             init_type = InitType.VIEWPORT
 
+        apply_texture_to_selected_mesh: bool = settings.apply_texture_to_selected_mesh
+
+        if apply_texture_to_selected_mesh:
+            render_depth_map(context)
+
         # If we are in the image editor, we need to save the image to a temporary file to use for init
         if init_type == InitType.TEXTURE:
             img = settings.init_texture_ref
@@ -381,7 +401,7 @@ class DreamRenderOperator(Operator):
             # workaround for render result not having pixels
             # https://blender.stackexchange.com/questions/2170/how-to-access-render-result-pixels-from-python-script
             if img.name == "Render Result":
-                img = bpy.data.images['Render Result']
+                img = bpy.data.images["Render Result"]
                 rr_path = rendered_dir + "/render_result.png"
                 img.save_render(rr_path, scene=None)
                 init_image = bpy.data.images.load(rr_path)
@@ -400,12 +420,12 @@ class DreamRenderOperator(Operator):
             prev_w, prev_h = scene.render.resolution_x, scene.render.resolution_y
             tmp_w, tmp_h = init_image_width, init_image_height
             for area in context.screen.areas:
-                if area.type == 'VIEW_3D':
+                if area.type == "VIEW_3D":
                     for region in area.regions:
-                        if region.type == 'WINDOW':
+                        if region.type == "WINDOW":
                             tmp_w, tmp_h = region.width, region.height
                     for space in area.spaces:
-                        if space.type == 'VIEW_3D':
+                        if space.type == "VIEW_3D":
                             if space.overlay.show_overlays:
                                 overlay_spaces.append(space)
 
@@ -426,7 +446,7 @@ class DreamRenderOperator(Operator):
 
             if res != {"FINISHED"}:
                 raise Exception("Failed to render: {}".format(res))
-                
+
         elif init_type == InitType.ANIMATION:
             init_img_paths, frame_path = get_anim_images()
         DreamStateOperator.generator_thread = GeneratorWorker(
@@ -519,8 +539,10 @@ class DS_OpenOutputFolderOperator(Operator):
             open_folder(generated_images_dir)
         return {"FINISHED"}
 
+
 class DS_UseRenderFolderOperator(Operator):
     """Use the current Output Path setting in Output Properties as the input folder"""
+
     bl_idname = "dreamstudio.set_render_folder"
     bl_label = "Use Render Folder"
 
@@ -583,6 +605,7 @@ class SelectFileOperator(bpy.types.Operator):
     def invoke(self, context, event):
         context.window_manager.fileselect_add(self)
         return {"RUNNING_MODAL"}
+
 
 def get_render_texture():
     for tex in bpy.data.textures:
