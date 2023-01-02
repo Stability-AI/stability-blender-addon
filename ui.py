@@ -4,6 +4,7 @@ from bpy.types import Panel
 import time
 import os
 from glob import glob
+import bpy
 
 from .prompt_list import render_prompt_list
 
@@ -48,7 +49,7 @@ class PanelSectionImageEditor:
     bl_category = DS_CATEGORY
 
 
-def render_in_progress_view(layout, ui_context: UIContext):
+def draw_in_progress_view(layout, ui_context: UIContext):
     init_type = get_init_type()
     state_text = (
         "Rendering..."
@@ -73,7 +74,7 @@ def render_in_progress_view(layout, ui_context: UIContext):
     return
 
 
-def render_onboard_view(layout):
+def draw_onboard_view(layout):
     prefs = get_preferences()
     get_key_row = layout.row()
     get_key_row.label(text="Enter your key first.")
@@ -94,7 +95,7 @@ def render_onboard_view(layout):
     get_started_row.enabled = prefs.api_key != "" and len(prefs.api_key) > 30
 
 
-def render_links_row(layout):
+def draw_links_row(layout):
     links_row = layout.row()
     links_row.operator(
         DS_OpenDocumentationOperator.bl_idname, text="Open Docs", icon="TEXT"
@@ -102,20 +103,20 @@ def render_links_row(layout):
     links_row.operator(DS_LogIssueOperator.bl_idname, text="Log Issue", icon="QUESTION")
 
 
-def render_init_type(layout, settings):
+def draw_init_type(layout, settings):
     row = layout.row()
     row.use_property_split = False
     row.use_property_decorate = False
     row.prop(settings, "init_type")
 
-def render_output_location_row(layout, settings):
+def draw_output_location_row(layout, settings):
     output_location_row = layout.row()
     output_location_row.alignment = "EXPAND"
     output_location_row.use_property_split = False
     output_location_row.use_property_decorate = False
     output_location_row.prop(settings, "output_location")
 
-def render_account_details(layout, settings):
+def draw_account_details(layout, settings):
     prefs = get_preferences()
     if DreamStateOperator.account and DreamStateOperator.account.logged_in:
         account_row = layout.row()
@@ -146,18 +147,18 @@ class DreamStudioImageEditorPanel(PanelSectionImageEditor, Panel):
             DreamStateOperator.render_state = RenderState.ONBOARDING
 
         if DreamStateOperator.render_state == RenderState.ONBOARDING:
-            render_onboard_view(layout)
+            draw_onboard_view(layout)
             return
 
         if DreamStateOperator.render_state != RenderState.IDLE:
-            render_in_progress_view(layout, UIContext.IMAGE_EDITOR)
+            draw_in_progress_view(layout, UIContext.IMAGE_EDITOR)
             return
 
 
-        render_account_details(layout, settings)
+        draw_account_details(layout, settings)
         render_prompt_list(context.scene, layout)
 
-        render_dream_row(layout, settings, scene, UIContext.IMAGE_EDITOR)
+        draw_dream_row(layout, settings, scene, UIContext.IMAGE_EDITOR)
 
 
 # UI for the scene view panel.
@@ -184,27 +185,26 @@ class DreamStudio3DPanel(Panel):
             DreamStateOperator.render_state = RenderState.ONBOARDING
 
         if DreamStateOperator.render_state == RenderState.ONBOARDING:
-            render_onboard_view(layout)
+            draw_onboard_view(layout)
             return
 
         if DreamStateOperator.render_state != RenderState.IDLE:
-            render_in_progress_view(layout, UIContext.SCENE_VIEW)
+            draw_in_progress_view(layout, UIContext.SCENE_VIEW)
             return
 
-        render_account_details(layout, settings)
+        draw_account_details(layout, settings)
         render_prompt_list(scene, layout)
 
-        render_dream_row(layout, settings, scene, UIContext.SCENE_VIEW)
+        draw_dream_row(layout, settings, scene, UIContext.SCENE_VIEW)
 
 TITLES = {
     InitType.ANIMATION.value: "Dream (Animation)",
     InitType.TEXT.value: "Dream (Prompt Only)",
     InitType.TEXTURE.value: "Dream (Texture)",
-    InitType.DEPTH.value: "Dream (Depth Map)",
 }
 
 
-def render_dream_row(layout, settings, scene, ui_context: UIContext):
+def draw_dream_row(layout, settings, scene, ui_context: UIContext):
     dream_row = layout.row()
     dream_row.scale_y = 2.0
     valid = render_validation(layout, settings, scene, ui_context)
@@ -235,6 +235,7 @@ def validate_settings(
     settings, scene, ui_context: UIContext, init_type: InitType
 ) -> tuple[ValidationState, str]:
     width, height = get_init_image_dimensions(settings, scene)
+    apply_texture_to_selected_mesh: bool = settings.apply_texture_to_selected_mesh
     prompts = scene.prompt_list
     # cannot be > 1 megapixel
     init_type = get_init_type()
@@ -243,6 +244,18 @@ def validate_settings(
             return (
                 ValidationState.RENDER_SETTINGS,
                 "Init image size cannot be greater than 1 megapixel.",
+            )
+
+    if apply_texture_to_selected_mesh :
+        valid_obj = False
+        for b_obj in bpy.context.selected_objects:
+            if b_obj.type == "MESH" :
+                valid_obj = True
+                break
+        if not valid_obj:
+            return (
+                ValidationState.RENDER_SETTINGS,
+                "Select a mesh to apply the texture to.",
             )
 
     if not prompts or len(prompts) < 1:
@@ -272,7 +285,7 @@ def validate_settings(
         if not os.path.isdir(render_dir):
             return (
                 ValidationState.RENDER_SETTINGS,
-                "Input directory is not valid.",
+                "Input directory does not exist or is invalid.",
             )
         if len(init_img_paths) < 1:
             return (
@@ -399,20 +412,30 @@ def draw_render_options_panel(self, context, ui_context: UIContext):
     if DreamStateOperator.render_state == RenderState.ONBOARDING:
         return
 
-    render_init_type(layout, settings)
+    draw_init_type(layout, settings)
 
     if init_type != InitType.TEXT:
         layout.prop(settings, "init_strength")
 
-    if init_type in (InitType.TEXTURE, InitType.DEPTH):
+
+    if init_type == InitType.TEXTURE:
         layout.template_ID(
             settings, "init_texture_ref", open="image.open", new="image.new"
         )
+
 
     if init_type == InitType.ANIMATION:
         init_folder_row = layout.row()
         init_folder_row.prop(settings, "init_animation_folder_path")
         init_folder_row.operator(DS_UseRenderFolderOperator.bl_idname)
+
+
+    if init_type in (InitType.ANIMATION, InitType.TEXTURE):
+        depth_row = layout.row()
+        depth_row.prop(settings, "using_depth_map")
+
+        if init_type == InitType.TEXTURE:
+            depth_row.prop(settings, "apply_texture_to_selected_mesh")
 
     use_resolution_label = "Use Render Resolution"
     if ui_context == UIContext.IMAGE_EDITOR:
@@ -423,6 +446,7 @@ def draw_render_options_panel(self, context, ui_context: UIContext):
     image_size_row.prop(settings, "init_image_height", text="Height")
     image_size_row.prop(settings, "init_image_width", text="Width")
 
-    render_output_location_row(layout, settings)
+    if not settings.apply_texture_to_selected_mesh:
+        draw_output_location_row(layout, settings)
 
     layout.operator(DS_OpenOutputFolderOperator.bl_idname, text="Open Output Folder")

@@ -178,6 +178,7 @@ class GeneratorWorker(Thread):
     def generate(self):
         settings = self.scene.ds_settings
         scene = self.scene
+        using_depth_map: bool = settings.using_depth_map
         args = format_rest_args(settings, scene.prompt_list)
 
         DreamStateOperator.render_state = RenderState.DIFFUSING
@@ -196,7 +197,7 @@ class GeneratorWorker(Thread):
 
         init_img_path = self.input_img_paths[0]
         # img2img mode - image editor, which can only generate from textures and text
-        if self.init_type in (InitType.TEXTURE, InitType.DEPTH):
+        if self.init_type == InitType.TEXTURE:
             DreamStateOperator.render_state = RenderState.DIFFUSING
             if not os.path.exists(init_img_path):
                 raise Exception(
@@ -204,14 +205,13 @@ class GeneratorWorker(Thread):
                         init_img_path
                     )
                 )
-            status, reason = render_img2img(init_img_path, output_file_path, args, depth=self.init_type == InitType.DEPTH)
+            status, reason = render_img2img(init_img_path, output_file_path, args, using_depth_map=using_depth_map)
             if status != 200:
                 raise Exception("Error generating image: {} {}".format(status, reason))
             DreamStateOperator.render_state = RenderState.FINISHED
             return
-
         # img2img mode - 3D view
-        if self.init_type == InitType.VIEWPORT:
+        elif self.init_type == InitType.VIEWPORT:
             input_img_path = self.input_img_paths[0]
             if not os.path.exists(input_img_path):
                 raise Exception(
@@ -219,7 +219,7 @@ class GeneratorWorker(Thread):
                         init_img_path
                     )
                 )
-            status, reason = render_img2img(input_img_path, output_file_path, args)
+            status, reason = render_img2img(input_img_path, output_file_path, args, using_depth_map=False)
             if status != 200:
                 raise Exception("Error generating image: {} {}".format(status, reason))
         elif self.init_type == InitType.ANIMATION:
@@ -255,7 +255,7 @@ class GeneratorWorker(Thread):
                     DreamStateOperator.render_state,
                 )
                 # We need to actually set Blender to a certain frame to evaluate all the keyframe values for that frame.
-                status, reason = render_img2img(frame_img_file, output_file_path, args)
+                status, reason = render_img2img(frame_img_file, output_file_path, args, using_depth_map)
                 print("rendered frame", i, status, reason, output_file_path)
                 if status != 200:
                     raise Exception(
@@ -276,6 +276,7 @@ class DreamRenderOperator(Operator):
     def modal(self, context, event):
         settings = context.scene.ds_settings
         output_location = OutputDisplayLocation[settings.output_location]
+        apply_texture_to_selected_mesh: bool = settings.apply_texture_to_selected_mesh
         ui_context = DreamStateOperator.ui_context
         init_type = get_init_type()
         prefs = get_preferences()
@@ -291,18 +292,18 @@ class DreamRenderOperator(Operator):
             DreamStateOperator.account = get_account_details(prefs.base_url, prefs.api_key)
             DreamStateOperator.last_account_check_time = time.time()
 
-            if init_type == InitType.DEPTH:
+            if apply_texture_to_selected_mesh:
                 rendered_image = bpy.data.images.load(
                     DreamStateOperator.last_rendered_image_path
                 )
                 generate_uv_map(context, rendered_image)
 
             DreamStateOperator.render_state = RenderState.IDLE
-            image_tex_area = None
-            for area in bpy.context.screen.areas:
-                if area.type == "IMAGE_EDITOR":
-                    image_tex_area = area
-            if output_location == OutputDisplayLocation.TEXTURE_VIEW and init_type != InitType.ANIMATION:
+            if output_location == OutputDisplayLocation.TEXTURE_VIEW and init_type != InitType.ANIMATION and not apply_texture_to_selected_mesh:
+                image_tex_area = None
+                for area in bpy.context.screen.areas:
+                    if area.type == "IMAGE_EDITOR":
+                        image_tex_area = area
                 rendered_image = bpy.data.images.load(
                     DreamStateOperator.last_rendered_image_path
                 )
@@ -371,10 +372,9 @@ class DreamRenderOperator(Operator):
 
         if DreamStateOperator.rendering_from_viewport:
             init_type = InitType.VIEWPORT
-            DreamStateOperator.rendering_from_viewport = False
 
         # If we are in the image editor, we need to save the image to a temporary file to use for init
-        if init_type in (InitType.TEXTURE, InitType.DEPTH):
+        if init_type == InitType.TEXTURE:
             img = settings.init_texture_ref
             if not img:
                 raise Exception("No init texture set")
@@ -477,6 +477,7 @@ class DreamStateOperator(Operator):
         self.cancel_rendering = False
         self.current_frame_idx = 0
         self.render_start_time = None
+        self.rendering_from_viewport = False
 
     def kill_render_thread():
         self = DreamStateOperator

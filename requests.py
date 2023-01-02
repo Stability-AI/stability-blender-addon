@@ -8,10 +8,10 @@ from .prompt_list import MULTIPROMPT_ENABLED
 from .data import APIType, TrackingEvent, DSAccount, get_preferences, log_sentry_event
 
 
-def render_img2img(input_file_location, output_file_location, args, depth=False):
+def render_img2img(input_file_location, output_file_location, args, using_depth_map=False):
     preferences = get_preferences()
     api_type = APIType[preferences.api_type]
-    if depth:
+    if using_depth_map:
         log_sentry_event(TrackingEvent.DEPTH2IMG)
         if api_type == APIType.REST:
             return render_img2img_rest(input_file_location, output_file_location, args, depth=True)

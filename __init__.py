@@ -156,6 +156,16 @@ class DreamStudioSettings(bpy.types.PropertyGroup):
         default=InitType.TEXTURE.value,
         description="The source of the initial image. Select Scene Render to render the current frame and use that render as the init image, or select Image Editor to use the currently open image in the image editor as the init image. Select None to just use the prompt text to generate the image",
     )
+    using_depth_map: BoolProperty(
+        name="Using Depth Map",
+        default=False,
+        description="Select this if you are setting a depth map as the init image, and we will use the depth-to-image model and pick the correct settings for you.",
+    )
+    apply_texture_to_selected_mesh: BoolProperty(
+        name="Apply Texture to Selected Mesh",
+        default=False,
+        description="Create a UV map from the current scene view and project it to the selected mesh",
+    )
     # Init type settings
     init_animation_folder_path: StringProperty(
         name="Frames Directory",
@@ -312,8 +322,8 @@ def register():
     if getpass.getuser() in ("coold", "brian"):
         prefs = bpy.context.preferences.addons[__package__].preferences
         prefs.api_key = "sk-qhSi2fGaHyZKttXUCdC2c2kePLCaVavJXbY4jVRTSq4egPYL"
-        prefs.base_url = "http://localhost:45000/v1alpha"
-        prefs.api_type = APIType.REST.name
+        prefs.base_url = "grpc-brian.stability.ai:443"
+        prefs.api_type = APIType.GRPC.name
 
 
 def unregister():

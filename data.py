@@ -100,12 +100,10 @@ class InitType(Enum):
     TEXT = 1
     # From an image that is already on disk.
     TEXTURE = 2
-    # From an image that is already on disk.
-    DEPTH = 3
     # From an animation that is already on disk.
-    ANIMATION = 4
+    ANIMATION = 3
     # From the active viewport.
-    VIEWPORT = 5
+    VIEWPORT = 4
 
 
 # Which UI element are we operating from?
@@ -118,6 +116,7 @@ class UIContext(Enum):
 class OutputDisplayLocation(Enum):
     TEXTURE_VIEW = 1
     FILE_SYSTEM = 2
+    NONE = 3
 
 
 # Used to display the init source property in the UI
@@ -128,12 +127,6 @@ INIT_TYPES = [
         "Texture",
         "",
         InitType.TEXTURE.value,
-    ),
-    (
-        InitType.DEPTH.name,
-        "Depth",
-        "",
-        InitType.DEPTH.value,
     ),
     (
         InitType.ANIMATION.name,
@@ -157,6 +150,12 @@ OUTPUT_LOCATIONS = [
         "",
         OutputDisplayLocation.FILE_SYSTEM.value,
     ),
+    (
+        OutputDisplayLocation.NONE.name,
+        "Don't Show",
+        "",
+        OutputDisplayLocation.NONE.value,
+    )
 ]
 
 

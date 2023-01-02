@@ -26,14 +26,13 @@ from bpy_extras import view3d_utils
 import gpu
 
 PROJECTED_UV_NAME = "DreamStudioUVMap"
+MATERIAL_NAME = "DreamStudioMaterial"
 
-def get_uv_layer(mesh:bmesh.types.BMesh):
-    for i in range(len(mesh.loops.layers.uv)):
-        uv = mesh.loops.layers.uv[i]
-        if uv.name.lower() == PROJECTED_UV_NAME.lower():
-            return uv
-        
-    return mesh.loops.layers.uv.new(PROJECTED_UV_NAME)
+def getArea(type):
+    for screen in bpy.context.workspace.screens:
+        for area in screen.areas:
+            if area.type == type:
+                return area
 
 
 def generate_uv_map(context, image_tex):
@@ -44,12 +43,8 @@ def generate_uv_map(context, image_tex):
     uv_node = projected_material.node_tree.nodes.new("ShaderNodeUVMap")
     uv_node.uv_map = PROJECTED_UV_NAME
     projected_material.node_tree.links.new(uv_node.outputs[0], texture_node.inputs[0]) 
-
-    tex_w, tex_h = image_tex.size[0], image_tex.size[1]
-    region_w, region_h = context.region.width, context.region.height
-
-    w_scale, h_scale = region_w / tex_w, region_h / tex_h
-    print(f"Scale: {w_scale}, {h_scale} ({region_w}, {region_h}) -> ({tex_w}, {tex_h})")
+    projected_material.name = MATERIAL_NAME
+    texture_node.image = image_tex
 
     area = None
 
@@ -59,25 +54,49 @@ def generate_uv_map(context, image_tex):
                 if region.type == 'WINDOW':
                     area = screen_area
 
-    for obj in bpy.context.selected_objects:
-        if not hasattr(obj, "data") or not hasattr(obj.data, "materials"):
+    for ns3d in getArea('VIEW_3D').spaces:
+        if ns3d.type == "VIEW_3D":
+            break
+
+    for b_obj in bpy.context.selected_objects:
+        if b_obj.type != "MESH" or not hasattr(b_obj, "data"):
             continue
-        material_index = len(obj.material_slots)
-        obj.data.materials.append(projected_material)
-        mesh = bmesh.from_edit_mesh(obj.data)
-        # Project from UVs view and update material index
+
+        if b_obj.data.uv_layers:
+            uv_layers = b_obj.data.uv_layers
+            # delete all existing uv maps
+            for uv in uv_layers:
+                uv_layers.remove(uv)
+
+        # delete all existing materials
+        if b_obj.data.materials:
+            for material in b_obj.data.materials:
+                if material:
+                    bpy.data.materials.remove(material, do_unlink=True)
+
+        b_obj.active_material_index = 0
+        for i in range(len(b_obj.material_slots)):
+            bpy.ops.object.material_slot_remove({'object': b_obj})
+
+        ns3d.region_3d.update()
+
+        bpy.ops.object.mode_set(mode='EDIT')
+        # convert to edit mode and generate verts table
+        mesh = bmesh.from_edit_mesh(b_obj.data)
+        mesh.faces.ensure_lookup_table()
         mesh.verts.ensure_lookup_table()
         mesh.verts.index_update()
-        uv_layer = get_uv_layer(mesh)
-        mesh.faces.ensure_lookup_table()
-        override = {'area': area, 'region': context.region, 'edit_object': obj}
+
+        mesh.loops.layers.uv.new(PROJECTED_UV_NAME)
+        b_obj.data.materials.append(projected_material)
+        # create new uv map
+        override = {'area': area, 'region': context.region, 'edit_object': b_obj}
         bpy.ops.uv.project_from_view(override , camera_bounds=False, correct_aspect=True)
         for face in mesh.faces:
-            if face.select:
-                face.material_index = material_index
-        projected_material.name = "PROJ_MAT"
-        texture_node.image = image_tex
-        bmesh.update_edit_mesh(obj.data)
+            face.material_index = len(b_obj.material_slots)
+
+        bmesh.update_edit_mesh(b_obj.data)
+        bpy.ops.object.mode_set(mode='OBJECT')
 
 def generate_depth_map():
     import numpy as np
