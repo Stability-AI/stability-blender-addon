@@ -45,6 +45,20 @@ def generate_uv_map(context, image_tex):
     uv_node.uv_map = PROJECTED_UV_NAME
     projected_material.node_tree.links.new(uv_node.outputs[0], texture_node.inputs[0]) 
 
+    tex_w, tex_h = image_tex.size[0], image_tex.size[1]
+    region_w, region_h = context.region.width, context.region.height
+
+    w_scale, h_scale = region_w / tex_w, region_h / tex_h
+    print(f"Scale: {w_scale}, {h_scale} ({region_w}, {region_h}) -> ({tex_w}, {tex_h})")
+
+    area = None
+
+    for screen_area in bpy.context.screen.areas:
+        if screen_area.type == 'VIEW_3D':
+            for region in screen_area.regions:
+                if region.type == 'WINDOW':
+                    area = screen_area
+
     for obj in bpy.context.selected_objects:
         if not hasattr(obj, "data") or not hasattr(obj.data, "materials"):
             continue
@@ -54,20 +68,12 @@ def generate_uv_map(context, image_tex):
         # Project from UVs view and update material index
         mesh.verts.ensure_lookup_table()
         mesh.verts.index_update()
-        def vert_to_uv(v):
-            screen_space = view3d_utils.location_3d_to_region_2d(context.region, context.space_data.region_3d, obj.matrix_world @ v.co)
-            if screen_space is None:
-                return None
-            return (screen_space[0] / context.region.width, screen_space[1] / context.region.height)
         uv_layer = get_uv_layer(mesh)
         mesh.faces.ensure_lookup_table()
+        override = {'area': area, 'region': context.region, 'edit_object': obj}
+        bpy.ops.uv.project_from_view(override , camera_bounds=False, correct_aspect=True)
         for face in mesh.faces:
             if face.select:
-                for loop in face.loops:
-                    uv = vert_to_uv(mesh.verts[loop.vert.index])
-                    if uv is None:
-                        continue
-                    loop[uv_layer].uv = uv
                 face.material_index = material_index
         projected_material.name = "PROJ_MAT"
         texture_node.image = image_tex

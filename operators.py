@@ -24,6 +24,7 @@ import webbrowser
 from bpy.app.handlers import persistent
 from bpy_extras import view3d_utils
 from .texture_gen import generate_depth_map, generate_uv_map
+import gpu
 
 from .data import (
     DSAccount,
