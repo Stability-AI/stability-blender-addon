@@ -8,23 +8,33 @@ from .prompt_list import MULTIPROMPT_ENABLED
 from .data import APIType, TrackingEvent, DSAccount, get_preferences, log_sentry_event
 
 
-def render_img2img(input_file_location, output_file_location, args):
+def render_img2img(input_file_location, output_file_location, args, using_depth_map=False):
     preferences = get_preferences()
     api_type = APIType[preferences.api_type]
+    if using_depth_map:
+        log_sentry_event(TrackingEvent.DEPTH2IMG)
+        if api_type == APIType.REST:
+            return render_img2img_rest(input_file_location, output_file_location, args, depth=True)
+        elif api_type == APIType.GRPC:
+            # HACK for now, the grpc server accepts depth as init_image
+            return render_img2img_grpc(input_file_location, output_file_location, args, depth=True)
     log_sentry_event(TrackingEvent.IMG2IMG)
     if api_type == APIType.REST:
         return render_img2img_rest(input_file_location, output_file_location, args)
-    if api_type == APIType.GRPC:
+    elif api_type == APIType.GRPC:
         return render_img2img_grpc(input_file_location, output_file_location, args)
 
 
-def render_img2img_rest(input_file_location, output_file_location, args):
+def render_img2img_rest(input_file_location, output_file_location, args, depth=False):
     seed = random.randrange(0, 4294967295) if args["seed"] is None else args["seed"]
+    clip_guidance = args["clip_guidance_preset"]
+    if depth:
+        clip_guidance = "NONE"
     all_options = {
         "cfg_scale": args["cfg_scale"],
-        "clip_guidance_preset": args["clip_guidance_preset"],
+        "clip_guidance_preset": clip_guidance,
         "height": 512,
-        "sampler": "K_DPM_2_ANCESTRAL",
+        "sampler": "K_DPMPP_2M",
         "seed": seed,
         "step_schedule_end": 0.01,
         "step_schedule_start": 1.0 - args["init_strength"],
@@ -34,7 +44,8 @@ def render_img2img_rest(input_file_location, output_file_location, args):
     }
 
     base_url = args["base_url"]
-    url = f"{base_url}/generation/stable-diffusion-v1-5/image-to-image"
+    engine = "stable-diffusion-v1-5" if not depth else "stable-diffusion-depth-v2-0"
+    url = f"{base_url}/generation/{engine}/image-to-image"
 
     payload = {"options": json.dumps(all_options)}
     files = [
@@ -66,10 +77,12 @@ def render_img2img_rest(input_file_location, output_file_location, args):
     return response.status_code, msg
 
 
-def render_img2img_grpc(input_file_location, output_file_location, args):
+def render_img2img_grpc(input_file_location, output_file_location, args, depth=False):
 
+    import stability_sdk.interfaces.gooseai.generation.generation_pb2 as generation
     from stability_sdk import client, interfaces
     from PIL import Image
+    import numpy as np
     import io
     from stability_sdk.utils import (
         SAMPLERS,
@@ -79,44 +92,64 @@ def render_img2img_grpc(input_file_location, output_file_location, args):
         open_images,
     )
 
-    stability_inference = client.StabilityInference(
-        key=args["api_key"], host=args["base_url"]
-    )
+    engine = "stable-diffusion-v1-5" if not depth else "stable-diffusion-depth-v2-0"
+    os.environ['STABILITY_HOST'] = args["base_url"]
 
+    host = 'grpc-brian.stability.ai:443'
+    key = 'sk-qhSi2fGaHyZKttXUCdC2c2kePLCaVavJXbY4jVRTSq4egPYL'
+
+
+    # Our Host URL should not be prepended with "https" nor should it have a trailing slash.
+    os.environ['STABILITY_HOST'] = host
+
+    # Sign up for an account at the following link to get an API Key. https://beta.dreamstudio.ai/membership
+    # Click on the following link once you have created an account to be taken to your API Key. Paste it below when prompted after running the cell. https://beta.dreamstudio.ai/membership?tab=apiKeys
+    os.environ['STABILITY_KEY'] = key
+    # Set up our connection to the API.
+    stability_api = client.StabilityInference(
+        key=os.environ['STABILITY_KEY'], # API Key reference.
+        verbose=True, # Print debug messages.
+        engine=engine, # Set the engine to use for generation. 
+        host=host
+    )
+    
     sampler = get_sampler_from_str(args["sampler"])
+    if depth:
+        sampler = generation.SAMPLER_K_DPMPP_2M
     init_img = Image.open(input_file_location)
     res_img = None
     seed = random.randrange(0, 4294967295) if args["seed"] is None else args["seed"]
-    if MULTIPROMPT_ENABLED:
-        prompts = args["prompts"]
-    else:
-        prompts = args["prompts"][0]["text"]
-    frame_seed = seed
-    answers = stability_inference.generate(
-        prompt=prompts,
+    prompt_protos = []
+    for p in args["prompts"]:
+        prompt_proto = generation.Prompt(text=p["text"]) 
+        prompt_params = prompt_proto.parameters
+        prompt_params.weight = p["weight"]
+        prompt_protos.append(prompt_proto)
+    answers = stability_api.generate(
         init_image=init_img,
-        width=init_img.width if init_img is not None else args["width"],
-        height=init_img.height if init_img is not None else args["height"],
-        start_schedule=1.0 - args["init_strength"],
-        cfg_scale=args["cfg_scale"],
+        start_schedule=1 - args["init_strength"],
+        prompt=prompt_protos,
+        seed=int(seed),
         steps=args["steps"],
-        guidance_strength=args["guidance_strength"],
-        sampler=sampler,
-        seed=frame_seed,
+        cfg_scale=args["cfg_scale"],
+        width=512,
+        height=512,
+        samples=1,
+        sampler=sampler
     )
 
+
     # TODO handle errors in here more gracefully. Look at REST or SDK code
-    for answer in answers:
-        for artifact in answer.artifacts:
-            print("type", artifact.type, "finish reason", artifact.finish_reason)
+    for resp in answers:
+        for artifact in resp.artifacts:
             if (
                 artifact.finish_reason
-                == interfaces.gooseai.generation.generation_pb2.FILTER
+                == generation.FILTER
             ):
                 return 401, "Safety filter hit"
             if (
                 artifact.type
-                == interfaces.gooseai.generation.generation_pb2.ARTIFACT_IMAGE
+                == generation.ARTIFACT_IMAGE
             ):
                 res_img = Image.open(io.BytesIO(artifact.binary))
                 res_img.save(output_file_location)
@@ -221,30 +254,35 @@ def log_analytics_event(
         )
 
 def get_account_details(base_url: str, api_key: str) -> DSAccount:
+
     
     user = DSAccount()
     
-    response = requests.get(f"{base_url}/user/account", headers={
-        "Authorization": api_key
-    })
+    try:
+        response = requests.get(f"{base_url}/user/account", headers={
+            "Authorization": api_key
+        })
 
-    if response.status_code != 200:
-        raise Exception("Error getting user details: " + str(response.text))
+        if response.status_code != 200:
+            raise Exception("Error getting user details: " + str(response.text))
 
-    # Do something with the payload...
-    user_payload = response.json()
+        # Do something with the payload...
+        user_payload = response.json()
 
-    user.email = user_payload["email"]
-    user.id = user_payload["id"]
+        user.email = user_payload["email"]
+        user.id = user_payload["id"]
 
-    response = requests.get(f"{base_url}/user/balance", headers={
-        "Authorization": api_key
-    })
+        response = requests.get(f"{base_url}/user/balance", headers={
+            "Authorization": api_key
+        })
 
-    if response.status_code != 200:
-        raise Exception("Error getting user balance: " + str(response.text))
-    
-    credits = response.json()["credits"]
-    user.credits = round(credits, 2)
+        if response.status_code != 200:
+            raise Exception("Error getting user balance: " + str(response.text))
+        
+        credits = response.json()["credits"]
+        user.credits = round(credits, 2)
+        user.logged_in = True
+    except Exception as e:
+        print(f"Error getting account details: {e}")
 
     return user

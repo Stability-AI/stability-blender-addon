@@ -49,6 +49,7 @@ from .data import (
 )
 from .prompt_list import (
     PromptList_NewItem,
+    PromptList_AddPreset,
     PromptList_RemoveItem,
     PromptListItem,
 )
@@ -124,7 +125,7 @@ class DreamStudioSettings(bpy.types.PropertyGroup):
     # uint32 max value
     seed: IntProperty(
         name="Seed",
-        default=0,
+        default=1027483647,
         min=0,
         max=2147483647,
         description="The seed fixes which random numbers are used for the diffusion process. This allows you to reproduce the same results for the same input frame. May also help with consistency across frames if you are rendering an animation",
@@ -154,6 +155,16 @@ class DreamStudioSettings(bpy.types.PropertyGroup):
         items=INIT_TYPES,
         default=InitType.TEXTURE.value,
         description="The source of the initial image. Select Scene Render to render the current frame and use that render as the init image, or select Image Editor to use the currently open image in the image editor as the init image. Select None to just use the prompt text to generate the image",
+    )
+    using_depth_map: BoolProperty(
+        name="Using Depth Map",
+        default=False,
+        description="Select this if you are setting a depth map as the init image, and we will use the depth-to-image model and pick the correct settings for you.",
+    )
+    apply_texture_to_selected_mesh: BoolProperty(
+        name="Apply Texture to Selected Mesh",
+        default=False,
+        description="Create a UV map from the current scene view and project it to the selected mesh",
     )
     # Init type settings
     init_animation_folder_path: StringProperty(
@@ -240,7 +251,7 @@ class DreamStudioPreferences(AddonPreferences):
     def draw(self, context):
         layout = self.layout
         # Disabled until GRPC is supported.
-        # layout.prop(self, "api_type")
+        layout.prop(self, "api_type")
         layout.prop(self, "api_key")
         layout.operator(DS_GetAPIKeyOperator.bl_idname, text="Get your API key here", icon="URL")
         layout.prop(self, "base_url")
@@ -255,6 +266,7 @@ class DreamStudioPreferences(AddonPreferences):
 
 prompt_list_operators = [
     PromptList_NewItem,
+    PromptList_AddPreset,
     PromptList_RemoveItem,
     PromptListItem,
 ]
@@ -271,10 +283,10 @@ registered_operators = [
     DS_SceneRenderViewportOperator,
     DreamStateOperator,
     DreamStudio3DPanel,
-    AdvancedOptionsPanelSection3DEditor,
-    AdvancedOptionsPanelSectionImageEditor,
     RenderOptionsPanelSection3DEditor,
     RenderOptionsPanelSectionImageEditor,
+    AdvancedOptionsPanelSection3DEditor,
+    AdvancedOptionsPanelSectionImageEditor,
     DS_FinishOnboardingOperator,
     DS_GetAPIKeyOperator,
     DS_OpenOutputFolderOperator,
@@ -293,7 +305,7 @@ def register():
         name="Index for prompt_list", default=0
     )
 
-    if check_dependencies_installed() and not DreamStateOperator.sentry_initialized:
+    if check_dependencies_installed(using_grpc=True, using_sentry=True) and not DreamStateOperator.sentry_initialized:
         initialize_sentry()
         DreamStateOperator.sentry_initialized = True
 
@@ -307,9 +319,11 @@ def register():
     bpy.context.preferences.use_preferences_save = True
 
     # hehe
-    if getpass.getuser() == "coold":
+    if getpass.getuser() in ("coold", "brian"):
         prefs = bpy.context.preferences.addons[__package__].preferences
-        prefs.api_key = "sk-Yc1fipqiDj98UVwEvVTP6OPgQmRk8cFRUSx79K9D3qCiNAFy"
+        prefs.api_key = "sk-qhSi2fGaHyZKttXUCdC2c2kePLCaVavJXbY4jVRTSq4egPYL"
+        prefs.base_url = "grpc-brian.stability.ai:443"
+        prefs.api_type = APIType.GRPC.name
 
 
 def unregister():

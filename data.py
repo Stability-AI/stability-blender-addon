@@ -116,11 +116,12 @@ class UIContext(Enum):
 class OutputDisplayLocation(Enum):
     TEXTURE_VIEW = 1
     FILE_SYSTEM = 2
+    NONE = 3
 
 
 # Used to display the init source property in the UI
 INIT_TYPES = [
-    (InitType.TEXT.name, "Text Prompt Only", "", InitType.TEXT.value),
+    (InitType.TEXT.name, "None", "", InitType.TEXT.value),
     (
         InitType.TEXTURE.name,
         "Texture",
@@ -149,6 +150,12 @@ OUTPUT_LOCATIONS = [
         "",
         OutputDisplayLocation.FILE_SYSTEM.value,
     ),
+    (
+        OutputDisplayLocation.NONE.name,
+        "Don't Show",
+        "",
+        OutputDisplayLocation.NONE.value,
+    )
 ]
 
 
@@ -257,6 +264,7 @@ class TrackingEvent(Enum):
     IMG2IMG = 2
     CANCEL_GENERATION = 3
     OPEN_WEB_URL = 4
+    DEPTH2IMG = 2
 
 
 TRACKED_GENERATION_PARAMS = [
@@ -305,7 +313,7 @@ def log_sentry_event(event: TrackingEvent):
     prefs = get_preferences()
     if prefs and not prefs.record_analytics:
         return
-    if not check_dependencies_installed():
+    if not check_dependencies_installed(False, prefs.record_analytics):
         return
     from sentry_sdk import capture_message, add_breadcrumb
 
@@ -344,3 +352,10 @@ class DSAccount:
     email: str
     user_id: str
     credits: float
+    logged_in: bool
+
+    def __init__(self) -> None:
+        self.email = ""
+        self.user_id = ""
+        self.credits = 0.0
+        self.logged_in = False

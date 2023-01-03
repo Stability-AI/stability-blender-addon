@@ -7,24 +7,29 @@ import tarfile
 import sysconfig
 
 
-def install_dependencies():
+def install_dependencies(using_grpc: bool = True, using_sentry: bool=True) -> None:
     ensurepip.bootstrap()
     os.environ.pop("PIP_REQ_TRACKER", None)
     env = os.environ.copy()
     env["PYTHONNOUSERSITE"] = "1"
     env["GRPC_PYTHON_BUILD_WITH_CYTHON"] = "1"
-    for dep_name in ("sentry-sdk", "Pillow"):
+    deps_to_install = ["Pillow"]
+    if using_sentry:
+        deps_to_install.append("sentry-sdk")
+    if using_grpc:
+        deps_to_install.append("stability-sdk")
+    for dep_name in deps_to_install:
         res = subprocess.run(
             [sys.executable, "-m", "pip", "install", dep_name], env=env
         )
-        print(res.stdout)
 
 
-def check_dependencies_installed(using_grpc: bool = False) -> bool:
+def check_dependencies_installed(using_grpc: bool = True, using_sentry: bool = True) -> bool:
     try:
         if using_grpc:
             import stability_sdk
-        import sentry_sdk
+        if using_sentry:
+            import sentry_sdk
 
         return True
     except ImportError:
