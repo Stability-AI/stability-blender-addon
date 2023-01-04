@@ -20,61 +20,61 @@ from .data import (
     get_preferences,
 )
 from .operators import (
-    DS_CancelRenderOperator,
-    DS_GetAPIKeyOperator,
+    CancelRenderOperator,
+    GetAPIKeyOperator,
     DS_LogIssueOperator,
-    DS_FinishOnboardingOperator,
+    FinishOnboardingOperator,
     DS_OpenDocumentationOperator,
-    DS_OpenOutputFolderOperator,
-    DS_SceneRenderExistingOutputOperator,
-    DS_SceneRenderViewportOperator,
-    DS_UseRenderFolderOperator,
-    DreamStateOperator,
+    OpenOutputFolderOperator,
+    SceneRenderExistingOutputOperator,
+    SceneRenderViewportOperator,
+    UseRenderFolderOperator,
+    StateOperator,
 )
 
 
-DS_CATEGORY = "DreamStudio"
+ADDON_CATEGORY = "Stability"
 DS_REGION_TYPE = "UI"
 
 
 class PanelSection3D:
     bl_space_type = "VIEW_3D"
     bl_region_type = DS_REGION_TYPE
-    bl_category = DS_CATEGORY
+    bl_category = ADDON_CATEGORY
 
 
 class PanelSectionImageEditor:
     bl_space_type = "IMAGE_EDITOR"
     bl_region_type = DS_REGION_TYPE
-    bl_category = DS_CATEGORY
+    bl_category = ADDON_CATEGORY
 
 
 def draw_in_progress_view(layout, ui_context: UIContext):
     init_type = get_init_type()
     state_text = (
         "Rendering..."
-        if DreamStateOperator.render_state == RenderState.RENDERING
-        else "Diffusing...".format(DreamStateOperator.current_frame_idx)
+        if StateOperator.render_state == RenderState.RENDERING
+        else "Diffusing...".format(StateOperator.current_frame_idx)
     )
-    if DreamStateOperator.render_start_time:
+    if StateOperator.render_start_time:
         state_text += " ({}s)".format(
-            round(time.time() - DreamStateOperator.render_start_time, 1)
+            round(time.time() - StateOperator.render_start_time, 1)
         )
     if (
         init_type == InitType.ANIMATION
         and ui_context == UIContext.SCENE_VIEW
-        and not DreamStateOperator.rendering_from_viewport
+        and not StateOperator.rendering_from_viewport
     ):
         state_text += " (frame {} / {})".format(
-            DreamStateOperator.current_frame_idx, DreamStateOperator.total_frame_count
+            StateOperator.current_frame_idx, StateOperator.total_frame_count
         )
     layout.label(text=state_text)
     cancel_text = (
         "Cancel Render"
-        if DreamStateOperator.render_state == RenderState.RENDERING
+        if StateOperator.render_state == RenderState.RENDERING
         else "Cancel Diffusion"
     )
-    layout.operator(DS_CancelRenderOperator.bl_idname, text=cancel_text)
+    layout.operator(CancelRenderOperator.bl_idname, text=cancel_text)
     return
 
 
@@ -82,7 +82,7 @@ def draw_onboard_view(layout):
     prefs = get_preferences()
     get_key_row = layout.row()
     get_key_row.label(text="Enter your API key to begin.")
-    get_key_row.operator(DS_GetAPIKeyOperator.bl_idname, text="Get Key", icon="URL")
+    get_key_row.operator(GetAPIKeyOperator.bl_idname, text="Get Key", icon="URL")
     api_key_row = layout.row()
     api_key_row.use_property_split = False
     api_key_row.use_property_decorate = False
@@ -94,7 +94,7 @@ def draw_onboard_view(layout):
 
     get_started_row = layout.row()
     get_started_row.operator(
-        DS_FinishOnboardingOperator.bl_idname, text="Get Started", icon="CHECKBOX_HLT"
+        FinishOnboardingOperator.bl_idname, text="Get Started", icon="CHECKBOX_HLT"
     )
     get_started_row.enabled = prefs.api_key != "" and len(prefs.api_key) > 30
 
@@ -124,30 +124,30 @@ def draw_output_location_row(layout, settings):
 
 def draw_account_details(layout, settings):
     prefs = get_preferences()
-    if DreamStateOperator.account and DreamStateOperator.account.logged_in:
+    if StateOperator.account and StateOperator.account.logged_in:
         account_row = layout.row()
         account_row.label(
-            text="Logged in as: {}".format(DreamStateOperator.account.email)
+            text="Logged in as: {}".format(StateOperator.account.email)
         )
         account_row.label(
-            text="Balance: {} credits".format(DreamStateOperator.account.credits)
+            text="Balance: {} credits".format(StateOperator.account.credits)
         )
     if (
-        not DreamStateOperator.account
-        or DreamStateOperator.last_account_check_time + 60 < time.time()
+        not StateOperator.account
+        or StateOperator.last_account_check_time + 60 < time.time()
     ):
-        DreamStateOperator.account = get_account_details(prefs.base_url, prefs.api_key)
-        DreamStateOperator.last_account_check_time = time.time()
+        StateOperator.account = get_account_details(prefs.base_url, prefs.api_key)
+        StateOperator.last_account_check_time = time.time()
 
 
 # UI for the image editor panel.
-class DreamStudioImageEditorPanel(PanelSectionImageEditor, Panel):
-    bl_idname = "panel.dreamstudio_image_editor"
-    bl_label = "DreamStudio"
+class StabilityImageEditorPanel(PanelSectionImageEditor, Panel):
+    bl_idname = "panel.stability_image_editor"
+    bl_label = "Stability"
     # https://docs.blender.org/api/current/bpy_types_enum_items/space_type_items.html#rna-enum-space-type-items
     bl_space_type = "IMAGE_EDITOR"
     bl_region_type = "UI"
-    bl_category = DS_CATEGORY
+    bl_category = ADDON_CATEGORY
 
     def draw(self, context):
         layout = self.layout
@@ -158,13 +158,13 @@ class DreamStudioImageEditorPanel(PanelSectionImageEditor, Panel):
         addon_updater_ops.update_notice_box_ui(self, context)
 
         if preferences and (not preferences.api_key or preferences.api_key == ""):
-            DreamStateOperator.render_state = RenderState.ONBOARDING
+            StateOperator.render_state = RenderState.ONBOARDING
 
-        if DreamStateOperator.render_state == RenderState.ONBOARDING:
+        if StateOperator.render_state == RenderState.ONBOARDING:
             draw_onboard_view(layout)
             return
 
-        if DreamStateOperator.render_state != RenderState.IDLE:
+        if StateOperator.render_state != RenderState.IDLE:
             draw_in_progress_view(layout, UIContext.IMAGE_EDITOR)
             return
 
@@ -175,12 +175,12 @@ class DreamStudioImageEditorPanel(PanelSectionImageEditor, Panel):
 
 
 # UI for the scene view panel.
-class DreamStudio3DPanel(Panel):
-    bl_idname = "panel.dreamstudio"
-    bl_label = "DreamStudio"
+class Stability3DPanel(Panel):
+    bl_idname = "panel.stability_3D"
+    bl_label = "Stability"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
-    bl_category = DS_CATEGORY
+    bl_category = ADDON_CATEGORY
 
     def draw(self, context):
         settings = context.scene.ds_settings
@@ -194,13 +194,13 @@ class DreamStudio3DPanel(Panel):
         addon_updater_ops.update_notice_box_ui(self, context)
 
         if preferences and (not preferences.api_key or preferences.api_key == ""):
-            DreamStateOperator.render_state = RenderState.ONBOARDING
+            StateOperator.render_state = RenderState.ONBOARDING
 
-        if DreamStateOperator.render_state == RenderState.ONBOARDING:
+        if StateOperator.render_state == RenderState.ONBOARDING:
             draw_onboard_view(layout)
             return
 
-        if DreamStateOperator.render_state != RenderState.IDLE:
+        if StateOperator.render_state != RenderState.IDLE:
             draw_in_progress_view(layout, UIContext.SCENE_VIEW)
             return
 
@@ -223,13 +223,13 @@ def draw_dream_row(layout, settings, scene, ui_context: UIContext):
     valid = render_validation(layout, settings, scene, ui_context)
     if ui_context == UIContext.IMAGE_EDITOR:
         dream_row.operator(
-            DS_SceneRenderExistingOutputOperator.bl_idname, text="Dream (Image Editor)"
+            SceneRenderExistingOutputOperator.bl_idname, text="Dream (Image Editor)"
         )
         dream_row.enabled = valid == ValidationState.VALID
     else:
         viewport_col = dream_row.column()
         viewport_col.operator(
-            DS_SceneRenderViewportOperator.bl_idname, text="Dream (Viewport)"
+            SceneRenderViewportOperator.bl_idname, text="Dream (Viewport)"
         )
         viewport_col.enabled = valid in (
             ValidationState.VALID,
@@ -238,7 +238,7 @@ def draw_dream_row(layout, settings, scene, ui_context: UIContext):
         render_col = dream_row.column()
         init_type = get_init_type()
         render_col.operator(
-            DS_SceneRenderExistingOutputOperator.bl_idname, text=TITLES[init_type.value]
+            SceneRenderExistingOutputOperator.bl_idname, text=TITLES[init_type.value]
         )
         render_col.enabled = valid == ValidationState.VALID
 
@@ -329,7 +329,7 @@ def render_validation(layout, settings, scene, ui_context: UIContext):
 
 class RenderOptionsPanelSectionImageEditor(PanelSectionImageEditor, Panel):
 
-    bl_parent_id = DreamStudioImageEditorPanel.bl_idname
+    bl_parent_id = StabilityImageEditorPanel.bl_idname
     bl_label = "Texture Options"
 
     def draw(self, context):
@@ -338,7 +338,7 @@ class RenderOptionsPanelSectionImageEditor(PanelSectionImageEditor, Panel):
 
 class RenderOptionsPanelSection3DEditor(PanelSection3D, Panel):
 
-    bl_parent_id = DreamStudio3DPanel.bl_idname
+    bl_parent_id = Stability3DPanel.bl_idname
     bl_label = "Init Options"
 
     def draw(self, context):
@@ -347,7 +347,7 @@ class RenderOptionsPanelSection3DEditor(PanelSection3D, Panel):
 
 class AdvancedOptionsPanelSection3DEditor(PanelSection3D, Panel):
 
-    bl_parent_id = DreamStudio3DPanel.bl_idname
+    bl_parent_id = Stability3DPanel.bl_idname
     bl_label = "Generation Options"
     bl_options = {"DEFAULT_CLOSED"}
 
@@ -357,7 +357,7 @@ class AdvancedOptionsPanelSection3DEditor(PanelSection3D, Panel):
 
 class AdvancedOptionsPanelSectionImageEditor(PanelSectionImageEditor, Panel):
 
-    bl_parent_id = DreamStudioImageEditorPanel.bl_idname
+    bl_parent_id = StabilityImageEditorPanel.bl_idname
     bl_label = "Input Options"
     bl_options = {"DEFAULT_CLOSED"}
 
@@ -370,7 +370,7 @@ def draw_advanced_options_panel(self, context):
     settings = context.scene.ds_settings
     use_recommended = settings.use_recommended_settings
 
-    if DreamStateOperator.render_state == RenderState.ONBOARDING:
+    if StateOperator.render_state == RenderState.ONBOARDING:
         return
 
     layout.prop(settings, "cfg_scale", text="Prompt Strength")
@@ -410,10 +410,11 @@ def draw_render_options_panel(self, context, ui_context: UIContext):
     settings = context.scene.ds_settings
     use_custom_res = not settings.use_render_resolution
     init_type = get_init_type()
-    if DreamStateOperator.render_state == RenderState.ONBOARDING:
+    if StateOperator.render_state == RenderState.ONBOARDING:
         return
 
     draw_init_type(layout, settings)
+
 
     if init_type != InitType.TEXT:
         layout.prop(settings, "init_strength")
@@ -422,11 +423,13 @@ def draw_render_options_panel(self, context, ui_context: UIContext):
         layout.template_ID(
             settings, "init_texture_ref", open="image.open", new="image.new"
         )
+        if ui_context == UIContext.SCENE_VIEW and init_type == InitType.TEXTURE:
+            layout.label(text="Select 'Render Result' above to use a rendered frame. Render first!")
 
     if init_type == InitType.ANIMATION:
         init_folder_row = layout.row()
         init_folder_row.prop(settings, "init_animation_folder_path")
-        init_folder_row.operator(DS_UseRenderFolderOperator.bl_idname)
+        init_folder_row.operator(UseRenderFolderOperator.bl_idname)
 
     use_resolution_label = "Use Render Resolution"
     if ui_context == UIContext.IMAGE_EDITOR:
@@ -438,4 +441,4 @@ def draw_render_options_panel(self, context, ui_context: UIContext):
     image_size_row.prop(settings, "init_image_width", text="Width")
 
     draw_output_location_row(layout, settings)
-    layout.operator(DS_OpenOutputFolderOperator.bl_idname, text="Open Output Folder")
+    layout.operator(OpenOutputFolderOperator.bl_idname, text="Open Output Folder")

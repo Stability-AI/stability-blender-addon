@@ -1,4 +1,4 @@
-# Using DreamStudio for Blender
+# Using Stability for Blender
 
 For instructions on installing the plugin, go here: [Installation](Installation.md)
 
@@ -8,15 +8,15 @@ Stability for Blender is meant to be used in two different contexts: the 3D View
 
 Load up a Blender project - if you don't have one handy, you can open the demo project, which you can download [here](https://github.com/Stability-AI/stability-blender-addon/raw/main/example_scenes/the%20orb.blend).
 
-Open your project and select the DreamStudio panel in the 3D View. You may need to click this arrow on the right side of the 3D View panel:
+Open your project and select the Stability panel in the 3D View. You may need to click this arrow on the right side of the 3D View panel:
 
 ![](/content/image_editor_slide_out.jpg)
 
-Enter your DreamStudio API key, and you should see the following UI:
+Enter your Stability API key, and you should see the following UI:
 
 ![](/content/3D_view_default.jpg)
 
-To start, press the 'Add' button on top of the Prompts list. This will add an empty prompt to the list - try filling the text field with `A mystical floating orb, concept art, matte painting, HQ, 4k`. You can click on 'DreamStudio Options' and 'Render Options' to toggle the panels for options relevant to diffusion and Blender, respectively.
+To start, press the 'Add' button on top of the Prompts list. This will add an empty prompt to the list - try filling the text field with `A mystical floating orb, concept art, matte painting, HQ, 4k`. You can click on 'Stability Options' and 'Render Options' to toggle the panels for options relevant to diffusion and Blender, respectively.
 
 Your UI should look like this:
 
@@ -28,7 +28,7 @@ Sometimes it can be useful to get a quick render from a vantage point to see how
 
 ### Generating from a Render
 
-To generate from an image rendered in Blender, open the Render Options panel by clicking the arrow next to the title. Then, change the Init Source to 'Texture'. You can choose any texture in your project as the init image, but for this you'll want to select 'Render Result'. Press F12 or Render -> Render Image in the top bar, to render your scene, then press `Dream (Texture)` in the DreamStudio UI. You should see your scene processed by Stable Diffusion!
+To generate from an image rendered in Blender, open the Render Options panel by clicking the arrow next to the title. Then, change the Init Source to 'Texture'. You can choose any texture in your project as the init image, but for this you'll want to select 'Render Result'. Press F12 or Render -> Render Image in the top bar, to render your scene, then press `Dream (Texture)` in the Stability UI. You should see your scene processed by Stable Diffusion!
 
 ![](/content/render_texture_init.png)
 
@@ -62,4 +62,4 @@ Similar to before, set the 'Height' and 'Width' to 512. Then, press the 'Add' bu
 
 Now, to render. Click 'Dream (Texture)' and Blender will send the texture to the Stability API. When the API finishes processing your image, the result will be displayed in your existing texture window.
 
-From here, try changing the prompt, adding multiple prompts, playing with the DreamStudio options, or different types of textures, and see what happens!
+From here, try changing the prompt, adding multiple prompts, playing with the Stability options, or different types of textures, and see what happens!

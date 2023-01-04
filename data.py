@@ -65,7 +65,7 @@ def get_init_image_dimensions(settings, scene):
 
 def copy_image(image):
     new_image = bpy.data.images.new(
-        "dreamstudio_result",
+        "generation_output",
         width=image.size[0],
         height=image.size[1],
     )
@@ -331,7 +331,7 @@ def get_preferences():
 def get_settings():
     if not hasattr(bpy.context.scene, "ds_settings"):
         raise Exception(
-            "DreamStudio settings not found! Restart Blender to fix this issue."
+            "Stability addon settings not found! Restart Blender to fix this issue."
         )
     return bpy.context.scene.ds_settings
 

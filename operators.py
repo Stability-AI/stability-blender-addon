@@ -67,12 +67,12 @@ def open_folder(dir: str):
 # Create and clear render directories. This function should get all filesystem info for rendering,
 # as well as any platform specific info.
 def setup_render_directories(clear_anim=True):
-    dreamstudio_dir = os.path.join(tempfile.gettempdir(), "dreamstudio")
-    rendered_dir = os.path.join(dreamstudio_dir, "rendered")
-    generated_images_dir = os.path.join(dreamstudio_dir, "generated_images")
-    generated_animation_dir = os.path.join(dreamstudio_dir, "generated_animation")
+    addon_data_dir = os.path.join(tempfile.gettempdir(), "stability")
+    rendered_dir = os.path.join(addon_data_dir, "rendered")
+    generated_images_dir = os.path.join(addon_data_dir, "generated_images")
+    generated_animation_dir = os.path.join(addon_data_dir, "generated_animation")
     for dir in [
-        dreamstudio_dir,
+        addon_data_dir,
         generated_images_dir,
         rendered_dir,
         generated_animation_dir,
@@ -89,18 +89,18 @@ def setup_render_directories(clear_anim=True):
     return rendered_dir, generated_images_dir, generated_animation_dir
 
 
-class DS_ContinueRenderOperator(Operator):
+class ContinueRenderOperator(Operator):
     """Continue Baking"""
 
     bl_idname = "dreamstudio.continue_render"
     bl_label = "Continue"
 
     def execute(self, context):
-        DreamStateOperator.render_state = RenderState.DIFFUSING
+        StateOperator.render_state = RenderState.DIFFUSING
         return {"FINISHED"}
 
 
-class DS_CancelRenderOperator(Operator):
+class CancelRenderOperator(Operator):
     """Cancel diffusion process"""
 
     bl_idname = "dreamstudio.cancel_render"
@@ -109,37 +109,37 @@ class DS_CancelRenderOperator(Operator):
     def execute(self, context):
         log_sentry_event(TrackingEvent.CANCEL_GENERATION)
         log_analytics_event(TrackingEvent.CANCEL_GENERATION)
-        DreamStateOperator.reset_render_state()
-        DreamStateOperator.kill_render_thread()
-        DreamStateOperator.render_state = RenderState.IDLE
+        StateOperator.reset_render_state()
+        StateOperator.kill_render_thread()
+        StateOperator.render_state = RenderState.IDLE
         return {"FINISHED"}
 
 
-class DS_SceneRenderViewportOperator(Operator):
+class SceneRenderViewportOperator(Operator):
     """Render the perspective from the current viewport, and send to Stability SDK for diffusion"""
 
     bl_idname = "dreamstudio.render_viewport"
     bl_label = "Cancel"
 
     def execute(self, context):
-        DreamStateOperator.ui_context = UIContext.SCENE_VIEW
-        DreamStateOperator.render_state = RenderState.RENDERING
-        DreamStateOperator.rendering_from_viewport = True
-        DreamStateOperator.render_start_time = time.time()
+        StateOperator.ui_context = UIContext.SCENE_VIEW
+        StateOperator.render_state = RenderState.RENDERING
+        StateOperator.rendering_from_viewport = True
+        StateOperator.render_start_time = time.time()
         bpy.ops.dreamstudio.dream_render_operator()
         return {"FINISHED"}
 
 
-class DS_SceneRenderExistingOutputOperator(Operator):
+class SceneRenderExistingOutputOperator(Operator):
     """Send an existing set of rendered frames to Stability SDK for diffusion"""
 
     bl_idname = "dreamstudio.render_existing_output"
     bl_label = "Cancel"
 
     def execute(self, context):
-        DreamStateOperator.ui_context = UIContext.SCENE_VIEW
-        DreamStateOperator.render_state = RenderState.RENDERING
-        DreamStateOperator.render_start_time = time.time()
+        StateOperator.ui_context = UIContext.SCENE_VIEW
+        StateOperator.render_state = RenderState.RENDERING
+        StateOperator.render_start_time = time.time()
         bpy.ops.dreamstudio.dream_render_operator()
         return {"FINISHED"}
 
@@ -167,9 +167,9 @@ class GeneratorWorker(Thread):
         try:
             self.generate()
         except Exception as e:
-            DreamStateOperator.render_state = RenderState.IDLE
-            DreamStateOperator.reset_render_state()
-            DreamStateOperator.kill_render_thread()
+            StateOperator.render_state = RenderState.IDLE
+            StateOperator.reset_render_state()
+            StateOperator.kill_render_thread()
             if check_dependencies_installed():
                 from sentry_sdk import capture_exception
 
@@ -182,16 +182,16 @@ class GeneratorWorker(Thread):
         scene = self.scene
         args = format_rest_args(settings, scene.prompt_list)
 
-        DreamStateOperator.render_state = RenderState.DIFFUSING
+        StateOperator.render_state = RenderState.DIFFUSING
         output_file_path = os.path.join(self.output_img_directory, "result.png")
         init_image_width, init_image_height = get_init_image_dimensions(settings, scene)
-        DreamStateOperator.last_rendered_image_path = output_file_path
+        StateOperator.last_rendered_image_path = output_file_path
 
         # text2img mode
         if self.init_type == InitType.TEXT:
-            DreamStateOperator.render_state = RenderState.DIFFUSING
+            StateOperator.render_state = RenderState.DIFFUSING
             status, reason = render_text2img(self.output_img_directory, args)
-            DreamStateOperator.render_state = RenderState.FINISHED
+            StateOperator.render_state = RenderState.FINISHED
             if status != 200:
                 raise Exception("Error generating image: {} {}".format(status, reason))
             return
@@ -199,7 +199,7 @@ class GeneratorWorker(Thread):
         init_img_path = self.input_img_paths[0]
         # img2img mode - image editor, which can only generate from textures and text
         if self.init_type == InitType.TEXTURE:
-            DreamStateOperator.render_state = RenderState.DIFFUSING
+            StateOperator.render_state = RenderState.DIFFUSING
             if not os.path.exists(init_img_path):
                 raise Exception(
                     "No image found at {}. Does the texture exist?".format(
@@ -209,7 +209,7 @@ class GeneratorWorker(Thread):
             status, reason = render_img2img(init_img_path, output_file_path, args)
             if status != 200:
                 raise Exception("Error generating image: {} {}".format(status, reason))
-            DreamStateOperator.render_state = RenderState.FINISHED
+            StateOperator.render_state = RenderState.FINISHED
             return
 
         # img2img mode - 3D view
@@ -231,22 +231,22 @@ class GeneratorWorker(Thread):
                     "No rendered frames found. Please render the scene first."
                 )
             end_frame = len(rendered_frame_image_paths)
-            DreamStateOperator.total_frame_count = end_frame
+            StateOperator.total_frame_count = end_frame
             for i, frame_img_file in enumerate(rendered_frame_image_paths[:end_frame]):
                 if (
                     not self.running
-                    or DreamStateOperator.render_state == RenderState.CANCELLED
+                    or StateOperator.render_state == RenderState.CANCELLED
                 ):
                     return
                 scene.frame_set(i + 1)
-                DreamStateOperator.render_start_time = time.time()
+                StateOperator.render_start_time = time.time()
                 args = format_rest_args(settings, scene.prompt_list)
                 output_file_path = os.path.join(
                     self.output_img_directory, f"result_{i}.png"
                 )
                 rendered_image = bpy.data.images.load(frame_img_file)
                 rendered_image.scale(init_image_width, init_image_height)
-                DreamStateOperator.current_frame_idx = i + 1
+                StateOperator.current_frame_idx = i + 1
                 # We need to actually set Blender to a certain frame to evaluate all the keyframe values for that frame.
                 status, reason = render_img2img(frame_img_file, output_file_path, args)
                 if status != 200:
@@ -255,9 +255,9 @@ class GeneratorWorker(Thread):
                     )
             scene.frame_set(0)
 
-        DreamStateOperator.rendering_from_viewport = False
+        StateOperator.rendering_from_viewport = False
         if self.running:
-            DreamStateOperator.render_state = RenderState.FINISHED
+            StateOperator.render_state = RenderState.FINISHED
 
 
 # Sets up the init image / animation, as well as setting all DreamStateOperator state that is passed to
@@ -269,23 +269,23 @@ class DreamRenderOperator(Operator):
     def modal(self, context, event):
         settings = context.scene.ds_settings
         output_location = OutputDisplayLocation[settings.output_location]
-        ui_context = DreamStateOperator.ui_context
+        ui_context = StateOperator.ui_context
         init_type = get_init_type()
         prefs = get_preferences()
 
-        if DreamStateOperator.render_start_time:
-            settings.current_time = time.time() - DreamStateOperator.render_start_time
+        if StateOperator.render_start_time:
+            settings.current_time = time.time() - StateOperator.render_start_time
 
-        if DreamStateOperator.render_state == RenderState.CANCELLED:
-            DreamStateOperator.render_state = RenderState.IDLE
+        if StateOperator.render_state == RenderState.CANCELLED:
+            StateOperator.render_state = RenderState.IDLE
             return {"FINISHED"}
 
-        if DreamStateOperator.render_state == RenderState.FINISHED:
-            DreamStateOperator.account = get_account_details(
+        if StateOperator.render_state == RenderState.FINISHED:
+            StateOperator.account = get_account_details(
                 prefs.base_url, prefs.api_key
             )
-            DreamStateOperator.last_account_check_time = time.time()
-            DreamStateOperator.render_state = RenderState.IDLE
+            StateOperator.last_account_check_time = time.time()
+            StateOperator.render_state = RenderState.IDLE
             image_tex_area = None
             for area in bpy.context.screen.areas:
                 if area.type == "IMAGE_EDITOR":
@@ -295,7 +295,7 @@ class DreamRenderOperator(Operator):
                 and init_type != InitType.ANIMATION
             ):
                 rendered_image = bpy.data.images.load(
-                    DreamStateOperator.last_rendered_image_path
+                    StateOperator.last_rendered_image_path
                 )
                 if image_tex_area:
                     image_tex_area.spaces.active.image = copy_image(rendered_image)
@@ -311,24 +311,24 @@ class DreamRenderOperator(Operator):
                 output_location == OutputDisplayLocation.FILE_SYSTEM
                 or ui_context == UIContext.SCENE_VIEW
             ):
-                open_folder(DreamStateOperator.generated_output_dir)
+                open_folder(StateOperator.generated_output_dir)
 
-        if DreamStateOperator.render_state == RenderState.IDLE:
+        if StateOperator.render_state == RenderState.IDLE:
             return {"FINISHED"}
 
         def confirm_cancel(self, context):
             layout = self.layout
-            layout.operator(DS_ContinueRenderOperator.bl_idname)
-            layout.operator(DS_CancelRenderOperator.bl_idname)
+            layout.operator(ContinueRenderOperator.bl_idname)
+            layout.operator(CancelRenderOperator.bl_idname)
 
-        if DreamStateOperator.render_state == RenderState.SHOULD_PAUSE:
+        if StateOperator.render_state == RenderState.SHOULD_PAUSE:
             context.window_manager.popup_menu(
                 confirm_cancel, title="Cancel generation?", icon="X"
             )
             return {"PASS_THROUGH"}
 
         if event.type == "ESC":
-            DreamStateOperator.render_state = RenderState.PAUSED
+            StateOperator.render_state = RenderState.PAUSED
             return {"PASS_THROUGH"}
 
         return {"PASS_THROUGH"}
@@ -337,10 +337,10 @@ class DreamRenderOperator(Operator):
         wm = context.window_manager
         settings = context.scene.ds_settings
         scene = bpy.context.scene
-        ui_context = DreamStateOperator.ui_context
+        ui_context = StateOperator.ui_context
         init_type = get_init_type()
         # Ensure there isn't an existing thread with a lock on the render directory.
-        DreamStateOperator.kill_render_thread()
+        StateOperator.kill_render_thread()
         (
             rendered_dir,
             generated_images_dir,
@@ -351,7 +351,7 @@ class DreamRenderOperator(Operator):
             if init_type == InitType.ANIMATION
             else generated_images_dir
         )
-        DreamStateOperator.generated_output_dir = out_dir
+        StateOperator.generated_output_dir = out_dir
         if context.area.type == "IMAGE_EDITOR":
             ui_context = UIContext.IMAGE_EDITOR
 
@@ -361,7 +361,7 @@ class DreamRenderOperator(Operator):
         render_file_path = scene.render.filepath
         init_img_paths = []
 
-        if DreamStateOperator.rendering_from_viewport:
+        if StateOperator.rendering_from_viewport:
             init_type = InitType.VIEWPORT
 
         # If we are in the image editor, we need to save the image to a temporary file to use for init
@@ -411,7 +411,7 @@ class DreamRenderOperator(Operator):
                 raise Exception("Failed to render: {}".format(res))
         elif init_type == InitType.ANIMATION:
             init_img_paths, frame_path = get_anim_images()
-        DreamStateOperator.generator_thread = GeneratorWorker(
+        StateOperator.generator_thread = GeneratorWorker(
             scene,
             context,
             ui_context,
@@ -419,7 +419,7 @@ class DreamRenderOperator(Operator):
             output_img_directory=out_dir,
             init_type=init_type,
         )
-        DreamStateOperator.generator_thread.start()
+        StateOperator.generator_thread.start()
 
         wm.modal_handler_add(self)
 
@@ -428,7 +428,7 @@ class DreamRenderOperator(Operator):
 
 # State that is held during runtime, that is not stored as user modified properties.
 # Read within the generation thread, and written to by the main thread.
-class DreamStateOperator(Operator):
+class StateOperator(Operator):
     bl_idname = "object.dream_operator"
     bl_label = "Dream"
     bl_options = {"REGISTER"}
@@ -455,13 +455,13 @@ class DreamStateOperator(Operator):
 
     # Cancel any in-progress render and reset the addon state.
     def reset_render_state():
-        self = DreamStateOperator
+        self = StateOperator
         self.cancel_rendering = False
         self.current_frame_idx = 0
         self.render_start_time = None
 
     def kill_render_thread():
-        self = DreamStateOperator
+        self = StateOperator
         if self.generator_thread:
             try:
                 self.generator_thread.running = False
@@ -483,7 +483,7 @@ class DS_OpenWebViewOperator(Operator):
         return {"FINISHED"}
 
 
-class DS_OpenOutputFolderOperator(Operator):
+class OpenOutputFolderOperator(Operator):
     bl_idname = "dreamstudio.open_output_folder"
     bl_label = "Open Output Folder"
 
@@ -501,7 +501,7 @@ class DS_OpenOutputFolderOperator(Operator):
         return {"FINISHED"}
 
 
-class DS_UseRenderFolderOperator(Operator):
+class UseRenderFolderOperator(Operator):
     """Use the current Output Path setting in Output Properties as the input folder"""
 
     bl_idname = "dreamstudio.set_render_folder"
@@ -515,7 +515,7 @@ class DS_UseRenderFolderOperator(Operator):
         return {"FINISHED"}
 
 
-class DS_GetAPIKeyOperator(DS_OpenWebViewOperator, Operator):
+class GetAPIKeyOperator(DS_OpenWebViewOperator, Operator):
     """Open a link to the API key page in your web browser"""
 
     bl_idname = "dreamstudio.get_api_key"
@@ -537,7 +537,7 @@ class DS_LogIssueOperator(DS_OpenWebViewOperator, Operator):
     url = "https://github.com/Stability-AI/stability-blender-addon/issues/new"
 
 
-class DS_FinishOnboardingOperator(Operator):
+class FinishOnboardingOperator(Operator):
     """Get started with Dream Studio!"""
 
     bl_idname = "dreamstudio.finish_onboarding"
@@ -549,8 +549,8 @@ class DS_FinishOnboardingOperator(Operator):
             if not check_dependencies_installed():
                 install_dependencies()
             initialize_sentry()
-        DreamStateOperator.sentry_initialized = True
-        DreamStateOperator.render_state = RenderState.IDLE
+        StateOperator.sentry_initialized = True
+        StateOperator.render_state = RenderState.IDLE
         return {"FINISHED"}
 
 

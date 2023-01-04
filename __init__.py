@@ -9,28 +9,29 @@ from bpy.props import (
 )
 from bpy.types import AddonPreferences
 from .operators import (
-    DS_GetAPIKeyOperator,
+    GetAPIKeyOperator,
     DS_LogIssueOperator,
-    DS_FinishOnboardingOperator,
+    FinishOnboardingOperator,
     DS_OpenDocumentationOperator,
-    DS_OpenOutputFolderOperator,
-    DS_SceneRenderExistingOutputOperator,
-    DS_SceneRenderViewportOperator,
-    DS_UseRenderFolderOperator,
-    DreamStateOperator,
-    DS_CancelRenderOperator,
-    DS_ContinueRenderOperator,
+    OpenOutputFolderOperator,
+    SceneRenderExistingOutputOperator,
+    SceneRenderViewportOperator,
+    UseRenderFolderOperator,
+    StateOperator,
+    CancelRenderOperator,
+    ContinueRenderOperator,
     DreamRenderOperator,
 )
 
 from .ui import (
     AdvancedOptionsPanelSection3DEditor,
-    DreamStudio3DPanel,
-    DreamStudioImageEditorPanel,
+    Stability3DPanel,
+    StabilityImageEditorPanel,
     RenderOptionsPanelSection3DEditor,
     RenderOptionsPanelSectionImageEditor,
     AdvancedOptionsPanelSectionImageEditor,
 )
+from .presets import PresetsPanel
 from . import addon_updater_ops
 from .dependencies import check_dependencies_installed
 import getpass
@@ -73,7 +74,7 @@ bl_info = {
 }
 
 
-class DreamStudioSettings(bpy.types.PropertyGroup):
+class StabilitySettings(bpy.types.PropertyGroup):
 
     # Global settings
     steps: IntProperty(
@@ -171,7 +172,7 @@ class DreamStudioSettings(bpy.types.PropertyGroup):
         description="Use the currently open image in the image editor as the init image. If unchecked, just use text",
     )
     output_location: EnumProperty(
-        name="Open In",
+        name="Open Result In",
         items=OUTPUT_LOCATIONS,
         description="The location to save the output image. The default is to open the result as a new image in the image editor. The other options are to output the images to the file system, and open the explorer to the image when diffusion is complete, or replace the existing image in the image editor.",
     )
@@ -180,7 +181,7 @@ class DreamStudioSettings(bpy.types.PropertyGroup):
 
 
 @addon_updater_ops.make_annotations
-class DreamStudioPreferences(AddonPreferences):
+class StabilityPreferences(AddonPreferences):
     bl_idname = __package__
 
     api_key: StringProperty(name="API Key", default="")
@@ -244,12 +245,12 @@ class DreamStudioPreferences(AddonPreferences):
         # layout.prop(self, "api_type")
         layout.prop(self, "api_key")
         layout.operator(
-            DS_GetAPIKeyOperator.bl_idname, text="Get your API key here", icon="URL"
+            GetAPIKeyOperator.bl_idname, text="Get your API key here", icon="URL"
         )
         layout.prop(self, "base_url")
         layout.prop(self, "record_analytics")
         layout.operator(
-            DS_FinishOnboardingOperator.bl_idname,
+            FinishOnboardingOperator.bl_idname,
             text="Reinstall Dependencies",
             icon="CONSOLE",
         )
@@ -266,23 +267,24 @@ prompt_list_operators = [
 registered_operators = [
     DS_OpenDocumentationOperator,
     DS_LogIssueOperator,
-    DreamStudioSettings,
+    StabilitySettings,
     DreamRenderOperator,
-    DreamStudioImageEditorPanel,
-    DS_CancelRenderOperator,
-    DS_ContinueRenderOperator,
-    DS_SceneRenderExistingOutputOperator,
-    DS_SceneRenderViewportOperator,
-    DreamStateOperator,
-    DreamStudio3DPanel,
+    StabilityImageEditorPanel,
+    CancelRenderOperator,
+    ContinueRenderOperator,
+    SceneRenderExistingOutputOperator,
+    SceneRenderViewportOperator,
+    StateOperator,
+    Stability3DPanel,
     RenderOptionsPanelSection3DEditor,
     RenderOptionsPanelSectionImageEditor,
     AdvancedOptionsPanelSection3DEditor,
     AdvancedOptionsPanelSectionImageEditor,
-    DS_FinishOnboardingOperator,
-    DS_GetAPIKeyOperator,
-    DS_OpenOutputFolderOperator,
-    DS_UseRenderFolderOperator,
+    FinishOnboardingOperator,
+    GetAPIKeyOperator,
+    OpenOutputFolderOperator,
+    UseRenderFolderOperator,
+    PresetsPanel
 ]
 
 
@@ -297,15 +299,15 @@ def register():
         name="Index for prompt_list", default=0
     )
 
-    if check_dependencies_installed() and not DreamStateOperator.sentry_initialized:
+    if check_dependencies_installed() and not StateOperator.sentry_initialized:
         initialize_sentry()
-        DreamStateOperator.sentry_initialized = True
+        StateOperator.sentry_initialized = True
 
     for op in registered_operators:
         bpy.utils.register_class(op)
 
-    bpy.utils.register_class(DreamStudioPreferences)
-    bpy.types.Scene.ds_settings = PointerProperty(type=DreamStudioSettings)
+    bpy.utils.register_class(StabilityPreferences)
+    bpy.types.Scene.ds_settings = PointerProperty(type=StabilitySettings)
 
     bpy.context.preferences.use_preferences_save = True
 
@@ -319,5 +321,5 @@ def unregister():
     for op in registered_operators + prompt_list_operators:
         bpy.utils.unregister_class(op)
     del bpy.types.Scene.ds_settings
-    bpy.utils.unregister_class(DreamStudioPreferences)
+    bpy.utils.unregister_class(StabilityPreferences)
     addon_updater_ops.unregister()
