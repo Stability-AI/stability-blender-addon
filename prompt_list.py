@@ -1,6 +1,9 @@
 import bpy
-from bpy.props import StringProperty, IntProperty, CollectionProperty, FloatProperty
+from bpy.props import StringProperty, IntProperty, CollectionProperty, FloatProperty, EnumProperty
 from bpy.types import PropertyGroup, UIList, Operator, Panel, UILayout
+import bpy.utils.previews
+import os
+from bpy.types import WindowManager
 
 MULTIPROMPT_ENABLED = True
 
@@ -58,13 +61,15 @@ class PromptList_AddPreset(Operator):
         return {"FINISHED"}
 
 
-def render_prompt_list(scene, layout):
+def render_prompt_list(layout, context):
+    scene = context.scene
 
     title_row = layout.row()
+    wm = context.window_manager
     if MULTIPROMPT_ENABLED:
         title_row.label(text="Prompts")
         title_row.operator(PromptList_NewItem.bl_idname, icon="ADD")
-        title_row.operator(PromptList_AddPreset.bl_idname, icon="PRESET")
+        title_row.prop(wm, "style_presets")
 
 
     for i in range(len(scene.prompt_list)):
@@ -89,3 +94,70 @@ def render_prompt_list(scene, layout):
                 "prompt_list.remove_item", text="", icon="REMOVE"
             )
             delete_op.index = i
+
+
+preview_collections = {}
+
+PRESETS = [
+    ("Fantasy", "fantasy.png", "Fantasy art, epic lighting from above, inside a rpg game, bottom angle, epic fantasy card game art, epic character portrait, glowing and epic, full art illustration, landscape illustration, celtic fantasy art, neon fog"),
+    ("Comic", "comic.png", "comic book cover, reddit, antipodeans, leading lines, preparing to fight, trending on imagestation, son, full device, some orange and blue, rear facing, netting, marvel, serious business, centered composition, wide shot")
+]
+
+presets_dict = { name: (filename, description) for (name, filename, description) in PRESETS}
+
+class PromptList_PresetPanel(bpy.types.Panel):
+    """Select a style preset"""
+    bl_label = "Select a style preset"
+    bl_idname = "OBJECT_PT_previews"
+    bl_space_type = 'PROPERTIES'
+    bl_region_type = 'WINDOW'
+    bl_context = "object"
+
+    def draw(self, context):
+        layout = self.layout
+        wm = context.window_manager
+
+        row = layout.row()
+        row.template_icon_view(wm, "style_presets")
+
+        row = layout.row()
+        row.prop(wm, "style_presets")
+
+
+def get_preset_icons(self, context):
+    enum_items = []
+
+    if context is None:
+        return enum_items
+
+    wm = context.window_manager
+    pcoll = preview_collections["style_presets"]
+    icons_dir = os.path.join(os.path.dirname(__file__), "preview_thumbnails")
+
+    for (name, (filename, description)) in presets_dict.items():
+        filepath = os.path.join(icons_dir, name)
+        if filepath in pcoll:
+            thumb = pcoll[filepath]
+        else:
+            thumb = pcoll.load(filepath, filepath, 'IMAGE')
+
+        enum_items.append((name, name, description, thumb.icon_id, 0))
+
+    pcoll.previews = enum_items
+    return pcoll.previews
+
+def update_preset(self, context):
+    print('update')
+    pass
+
+def register_presets():
+    
+    WindowManager.style_presets = EnumProperty(
+        items=get_preset_icons,
+        update=update_preset
+        )
+
+
+    pcoll = bpy.utils.previews.new()
+
+    preview_collections["style_presets"] = pcoll

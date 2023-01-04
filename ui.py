@@ -169,7 +169,7 @@ class StabilityImageEditorPanel(PanelSectionImageEditor, Panel):
             return
 
         draw_account_details(layout, settings)
-        render_prompt_list(context.scene, layout)
+        render_prompt_list(layout, context)
 
         draw_dream_row(layout, settings, scene, UIContext.IMAGE_EDITOR)
 
@@ -205,7 +205,7 @@ class Stability3DPanel(Panel):
             return
 
         draw_account_details(layout, settings)
-        render_prompt_list(scene, layout)
+        render_prompt_list(layout, context)
 
         draw_dream_row(layout, settings, scene, UIContext.SCENE_VIEW)
 

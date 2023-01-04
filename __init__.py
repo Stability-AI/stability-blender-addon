@@ -31,7 +31,6 @@ from .ui import (
     RenderOptionsPanelSectionImageEditor,
     AdvancedOptionsPanelSectionImageEditor,
 )
-from .presets import PresetsPanel
 from . import addon_updater_ops
 from .dependencies import check_dependencies_installed
 import getpass
@@ -50,9 +49,11 @@ from .data import (
 )
 from .prompt_list import (
     PromptList_NewItem,
+    PromptList_PresetPanel,
     PromptList_RemoveItem,
     PromptListItem,
-    PromptList_AddPreset
+    PromptList_AddPreset,
+    register_presets
 )
 
 # Update the entire UI when this property changes.
@@ -261,7 +262,8 @@ prompt_list_operators = [
     PromptList_NewItem,
     PromptList_RemoveItem,
     PromptListItem,
-    PromptList_AddPreset
+    PromptList_AddPreset,
+    PromptList_PresetPanel
 ]
 
 registered_operators = [
@@ -284,13 +286,15 @@ registered_operators = [
     GetAPIKeyOperator,
     OpenOutputFolderOperator,
     UseRenderFolderOperator,
-    PresetsPanel
 ]
 
 
 def register():
 
     addon_updater_ops.register(bl_info)
+    
+    register_presets()
+
     for op in prompt_list_operators:
         bpy.utils.register_class(op)
 
