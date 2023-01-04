@@ -23,7 +23,7 @@ class PromptList_NewItem(Operator):
     """Add a new item to the list."""
 
     bl_idname = "prompt_list.new_item"
-    bl_label = "Add a new prompt"
+    bl_label = "Add"
 
     def execute(self, context):
         context.scene.prompt_list.add()
@@ -45,12 +45,27 @@ class PromptList_RemoveItem(Operator):
         return {"FINISHED"}
 
 
+class PromptList_AddPreset(Operator):
+    """Add a new item to the list."""
+
+    bl_idname = "prompt_list.add_preset"
+    bl_label = "Preset"
+
+    def execute(self, context):
+        new_prompt = context.scene.prompt_list.add()
+        new_prompt.prompt = "Close up, 8k, high detail, photorealistic, proper shading, stock photo"
+
+        return {"FINISHED"}
+
+
 def render_prompt_list(scene, layout):
 
     title_row = layout.row()
     if MULTIPROMPT_ENABLED:
         title_row.label(text="Prompts")
-        title_row.operator("prompt_list.new_item", text="Add", icon="ADD")
+        title_row.operator(PromptList_NewItem.bl_idname, icon="ADD")
+        title_row.operator(PromptList_AddPreset.bl_idname, icon="PRESET")
+
 
     for i in range(len(scene.prompt_list)):
         item = scene.prompt_list[i]

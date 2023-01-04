@@ -41,7 +41,12 @@ from .data import (
     log_sentry_event,
 )
 from .dependencies import install_dependencies, check_dependencies_installed
-from .requests import get_account_details, log_analytics_event, render_img2img, render_text2img
+from .requests import (
+    get_account_details,
+    log_analytics_event,
+    render_img2img,
+    render_text2img,
+)
 import multiprocessing as mp
 import threading
 from glob import glob
@@ -111,7 +116,7 @@ class DS_CancelRenderOperator(Operator):
 
 
 class DS_SceneRenderViewportOperator(Operator):
-    """Render the current frame, then send to Stability SDK for diffusion"""
+    """Render the perspective from the current viewport, and send to Stability SDK for diffusion"""
 
     bl_idname = "dreamstudio.render_viewport"
     bl_label = "Cancel"
@@ -193,7 +198,7 @@ class GeneratorWorker(Thread):
 
         init_img_path = self.input_img_paths[0]
         # img2img mode - image editor, which can only generate from textures and text
-        if self.init_type == InitType.TEXTURE or self.init_type == InitType.TEXTURE:
+        if self.init_type == InitType.TEXTURE:
             DreamStateOperator.render_state = RenderState.DIFFUSING
             if not os.path.exists(init_img_path):
                 raise Exception(
@@ -233,27 +238,17 @@ class GeneratorWorker(Thread):
                     or DreamStateOperator.render_state == RenderState.CANCELLED
                 ):
                     return
-                print('frame set', i + 1)
                 scene.frame_set(i + 1)
-                print('did set frame')
                 DreamStateOperator.render_start_time = time.time()
                 args = format_rest_args(settings, scene.prompt_list)
-                print('args', args)
                 output_file_path = os.path.join(
                     self.output_img_directory, f"result_{i}.png"
                 )
-                print('rendering frame', i, frame_img_file, output_file_path)
                 rendered_image = bpy.data.images.load(frame_img_file)
-                print('scaling frame', i, init_image_width, init_image_height)
                 rendered_image.scale(init_image_width, init_image_height)
                 DreamStateOperator.current_frame_idx = i + 1
-                print(
-                    "about to render frame - render state:",
-                    DreamStateOperator.render_state,
-                )
                 # We need to actually set Blender to a certain frame to evaluate all the keyframe values for that frame.
                 status, reason = render_img2img(frame_img_file, output_file_path, args)
-                print("rendered frame", i, status, reason, output_file_path)
                 if status != 200:
                     raise Exception(
                         "Error generating image: {} {}".format(status, reason)
@@ -286,14 +281,19 @@ class DreamRenderOperator(Operator):
             return {"FINISHED"}
 
         if DreamStateOperator.render_state == RenderState.FINISHED:
-            DreamStateOperator.account = get_account_details(prefs.base_url, prefs.api_key)
+            DreamStateOperator.account = get_account_details(
+                prefs.base_url, prefs.api_key
+            )
             DreamStateOperator.last_account_check_time = time.time()
             DreamStateOperator.render_state = RenderState.IDLE
             image_tex_area = None
             for area in bpy.context.screen.areas:
                 if area.type == "IMAGE_EDITOR":
                     image_tex_area = area
-            if output_location == OutputDisplayLocation.TEXTURE_VIEW and init_type != InitType.ANIMATION:
+            if (
+                output_location == OutputDisplayLocation.TEXTURE_VIEW
+                and init_type != InitType.ANIMATION
+            ):
                 rendered_image = bpy.data.images.load(
                     DreamStateOperator.last_rendered_image_path
                 )
@@ -372,7 +372,7 @@ class DreamRenderOperator(Operator):
             # workaround for render result not having pixels
             # https://blender.stackexchange.com/questions/2170/how-to-access-render-result-pixels-from-python-script
             if img.name == "Render Result":
-                img = bpy.data.images['Render Result']
+                img = bpy.data.images["Render Result"]
                 rr_path = rendered_dir + "/render_result.png"
                 img.save_render(rr_path, scene=None)
                 init_image = bpy.data.images.load(rr_path)
@@ -500,8 +500,10 @@ class DS_OpenOutputFolderOperator(Operator):
             open_folder(generated_images_dir)
         return {"FINISHED"}
 
+
 class DS_UseRenderFolderOperator(Operator):
     """Use the current Output Path setting in Output Properties as the input folder"""
+
     bl_idname = "dreamstudio.set_render_folder"
     bl_label = "Use Render Folder"
 
@@ -564,6 +566,7 @@ class SelectFileOperator(bpy.types.Operator):
     def invoke(self, context, event):
         context.window_manager.fileselect_add(self)
         return {"RUNNING_MODAL"}
+
 
 def get_render_texture():
     for tex in bpy.data.textures:

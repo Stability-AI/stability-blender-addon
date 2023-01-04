@@ -51,6 +51,7 @@ from .prompt_list import (
     PromptList_NewItem,
     PromptList_RemoveItem,
     PromptListItem,
+    PromptList_AddPreset
 )
 
 # Update the entire UI when this property changes.
@@ -124,7 +125,7 @@ class DreamStudioSettings(bpy.types.PropertyGroup):
     # uint32 max value
     seed: IntProperty(
         name="Seed",
-        default=0,
+        default=555555,
         min=0,
         max=2147483647,
         description="The seed fixes which random numbers are used for the diffusion process. This allows you to reproduce the same results for the same input frame. May also help with consistency across frames if you are rendering an animation",
@@ -152,7 +153,7 @@ class DreamStudioSettings(bpy.types.PropertyGroup):
     init_type: EnumProperty(
         name="Init Type",
         items=INIT_TYPES,
-        default=InitType.TEXTURE.value,
+        default=InitType.TEXT.value,
         description="The source of the initial image. Select Scene Render to render the current frame and use that render as the init image, or select Image Editor to use the currently open image in the image editor as the init image. Select None to just use the prompt text to generate the image",
     )
     # Init type settings
@@ -170,7 +171,7 @@ class DreamStudioSettings(bpy.types.PropertyGroup):
         description="Use the currently open image in the image editor as the init image. If unchecked, just use text",
     )
     output_location: EnumProperty(
-        name="Open Result In",
+        name="Open In",
         items=OUTPUT_LOCATIONS,
         description="The location to save the output image. The default is to open the result as a new image in the image editor. The other options are to output the images to the file system, and open the explorer to the image when diffusion is complete, or replace the existing image in the image editor.",
     )
@@ -242,7 +243,9 @@ class DreamStudioPreferences(AddonPreferences):
         # Disabled until GRPC is supported.
         # layout.prop(self, "api_type")
         layout.prop(self, "api_key")
-        layout.operator(DS_GetAPIKeyOperator.bl_idname, text="Get your API key here", icon="URL")
+        layout.operator(
+            DS_GetAPIKeyOperator.bl_idname, text="Get your API key here", icon="URL"
+        )
         layout.prop(self, "base_url")
         layout.prop(self, "record_analytics")
         layout.operator(
@@ -257,6 +260,7 @@ prompt_list_operators = [
     PromptList_NewItem,
     PromptList_RemoveItem,
     PromptListItem,
+    PromptList_AddPreset
 ]
 
 registered_operators = [
@@ -271,14 +275,14 @@ registered_operators = [
     DS_SceneRenderViewportOperator,
     DreamStateOperator,
     DreamStudio3DPanel,
-    AdvancedOptionsPanelSection3DEditor,
-    AdvancedOptionsPanelSectionImageEditor,
     RenderOptionsPanelSection3DEditor,
     RenderOptionsPanelSectionImageEditor,
+    AdvancedOptionsPanelSection3DEditor,
+    AdvancedOptionsPanelSectionImageEditor,
     DS_FinishOnboardingOperator,
     DS_GetAPIKeyOperator,
     DS_OpenOutputFolderOperator,
-    DS_UseRenderFolderOperator
+    DS_UseRenderFolderOperator,
 ]
 
 
@@ -299,7 +303,6 @@ def register():
 
     for op in registered_operators:
         bpy.utils.register_class(op)
-
 
     bpy.utils.register_class(DreamStudioPreferences)
     bpy.types.Scene.ds_settings = PointerProperty(type=DreamStudioSettings)

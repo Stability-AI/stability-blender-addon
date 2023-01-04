@@ -4,6 +4,7 @@ from bpy.types import Panel
 import time
 import os
 from glob import glob
+import bpy
 
 from .prompt_list import render_prompt_list
 
@@ -48,7 +49,7 @@ class PanelSectionImageEditor:
     bl_category = DS_CATEGORY
 
 
-def render_in_progress_view(layout, ui_context: UIContext):
+def draw_in_progress_view(layout, ui_context: UIContext):
     init_type = get_init_type()
     state_text = (
         "Rendering..."
@@ -59,7 +60,11 @@ def render_in_progress_view(layout, ui_context: UIContext):
         state_text += " ({}s)".format(
             round(time.time() - DreamStateOperator.render_start_time, 1)
         )
-    if init_type == InitType.ANIMATION and ui_context == UIContext.SCENE_VIEW and not DreamStateOperator.rendering_from_viewport:
+    if (
+        init_type == InitType.ANIMATION
+        and ui_context == UIContext.SCENE_VIEW
+        and not DreamStateOperator.rendering_from_viewport
+    ):
         state_text += " (frame {} / {})".format(
             DreamStateOperator.current_frame_idx, DreamStateOperator.total_frame_count
         )
@@ -73,10 +78,10 @@ def render_in_progress_view(layout, ui_context: UIContext):
     return
 
 
-def render_onboard_view(layout):
+def draw_onboard_view(layout):
     prefs = get_preferences()
     get_key_row = layout.row()
-    get_key_row.label(text="Enter your key first.")
+    get_key_row.label(text="Enter your API key to begin.")
     get_key_row.operator(DS_GetAPIKeyOperator.bl_idname, text="Get Key", icon="URL")
     api_key_row = layout.row()
     api_key_row.use_property_split = False
@@ -94,7 +99,7 @@ def render_onboard_view(layout):
     get_started_row.enabled = prefs.api_key != "" and len(prefs.api_key) > 30
 
 
-def render_links_row(layout):
+def draw_links_row(layout):
     links_row = layout.row()
     links_row.operator(
         DS_OpenDocumentationOperator.bl_idname, text="Open Docs", icon="TEXT"
@@ -102,22 +107,38 @@ def render_links_row(layout):
     links_row.operator(DS_LogIssueOperator.bl_idname, text="Log Issue", icon="QUESTION")
 
 
-def render_output_location_row(layout, settings):
+def draw_init_type(layout, settings):
+    row = layout.row()
+    row.use_property_split = False
+    row.use_property_decorate = False
+    row.prop(settings, "init_type")
+
+
+def draw_output_location_row(layout, settings):
     output_location_row = layout.row()
     output_location_row.alignment = "EXPAND"
     output_location_row.use_property_split = False
     output_location_row.use_property_decorate = False
     output_location_row.prop(settings, "output_location")
 
-def render_account_details(layout, settings):
+
+def draw_account_details(layout, settings):
     prefs = get_preferences()
-    if DreamStateOperator.account:
+    if DreamStateOperator.account and DreamStateOperator.account.logged_in:
         account_row = layout.row()
-        account_row.label(text="Logged in as: {}".format(DreamStateOperator.account.email))
-        account_row.label(text="Balance: {} credits".format(DreamStateOperator.account.credits))
-    if not DreamStateOperator.account or DreamStateOperator.last_account_check_time + 60 < time.time():
+        account_row.label(
+            text="Logged in as: {}".format(DreamStateOperator.account.email)
+        )
+        account_row.label(
+            text="Balance: {} credits".format(DreamStateOperator.account.credits)
+        )
+    if (
+        not DreamStateOperator.account
+        or DreamStateOperator.last_account_check_time + 60 < time.time()
+    ):
         DreamStateOperator.account = get_account_details(prefs.base_url, prefs.api_key)
         DreamStateOperator.last_account_check_time = time.time()
+
 
 # UI for the image editor panel.
 class DreamStudioImageEditorPanel(PanelSectionImageEditor, Panel):
@@ -140,19 +161,17 @@ class DreamStudioImageEditorPanel(PanelSectionImageEditor, Panel):
             DreamStateOperator.render_state = RenderState.ONBOARDING
 
         if DreamStateOperator.render_state == RenderState.ONBOARDING:
-            render_onboard_view(layout)
+            draw_onboard_view(layout)
             return
 
         if DreamStateOperator.render_state != RenderState.IDLE:
-            render_in_progress_view(layout, UIContext.IMAGE_EDITOR)
+            draw_in_progress_view(layout, UIContext.IMAGE_EDITOR)
             return
 
-
-        render_account_details(layout, settings)
+        draw_account_details(layout, settings)
         render_prompt_list(context.scene, layout)
 
-        render_dream_row(layout, settings, scene, UIContext.IMAGE_EDITOR)
-        render_links_row(layout)
+        draw_dream_row(layout, settings, scene, UIContext.IMAGE_EDITOR)
 
 
 # UI for the scene view panel.
@@ -178,27 +197,27 @@ class DreamStudio3DPanel(Panel):
             DreamStateOperator.render_state = RenderState.ONBOARDING
 
         if DreamStateOperator.render_state == RenderState.ONBOARDING:
-            render_onboard_view(layout)
+            draw_onboard_view(layout)
             return
 
         if DreamStateOperator.render_state != RenderState.IDLE:
-            render_in_progress_view(layout, UIContext.SCENE_VIEW)
+            draw_in_progress_view(layout, UIContext.SCENE_VIEW)
             return
 
-        render_account_details(layout, settings)
+        draw_account_details(layout, settings)
         render_prompt_list(scene, layout)
 
-        render_dream_row(layout, settings, scene, UIContext.SCENE_VIEW)
-        render_links_row(layout)
+        draw_dream_row(layout, settings, scene, UIContext.SCENE_VIEW)
+
 
 TITLES = {
     InitType.ANIMATION.value: "Dream (Animation)",
-    InitType.TEXT.value: "Dream (Text)",
+    InitType.TEXT.value: "Dream (Prompt Only)",
     InitType.TEXTURE.value: "Dream (Texture)",
 }
 
 
-def render_dream_row(layout, settings, scene, ui_context: UIContext):
+def draw_dream_row(layout, settings, scene, ui_context: UIContext):
     dream_row = layout.row()
     dream_row.scale_y = 2.0
     valid = render_validation(layout, settings, scene, ui_context)
@@ -266,7 +285,7 @@ def validate_settings(
         if not os.path.isdir(render_dir):
             return (
                 ValidationState.RENDER_SETTINGS,
-                "Input directory is not valid.",
+                "Input directory does not exist or is invalid.",
             )
         if len(init_img_paths) < 1:
             return (
@@ -314,22 +333,22 @@ class RenderOptionsPanelSectionImageEditor(PanelSectionImageEditor, Panel):
     bl_label = "Texture Options"
 
     def draw(self, context):
-        render_render_options_panel(self, context, UIContext.IMAGE_EDITOR)
+        draw_render_options_panel(self, context, UIContext.IMAGE_EDITOR)
 
 
 class RenderOptionsPanelSection3DEditor(PanelSection3D, Panel):
 
     bl_parent_id = DreamStudio3DPanel.bl_idname
-    bl_label = "Render Options"
+    bl_label = "Init Options"
 
     def draw(self, context):
-        render_render_options_panel(self, context, UIContext.SCENE_VIEW)
+        draw_render_options_panel(self, context, UIContext.SCENE_VIEW)
 
 
 class AdvancedOptionsPanelSection3DEditor(PanelSection3D, Panel):
 
     bl_parent_id = DreamStudio3DPanel.bl_idname
-    bl_label = "DreamStudio Options"
+    bl_label = "Generation Options"
     bl_options = {"DEFAULT_CLOSED"}
 
     def draw(self, context):
@@ -339,7 +358,7 @@ class AdvancedOptionsPanelSection3DEditor(PanelSection3D, Panel):
 class AdvancedOptionsPanelSectionImageEditor(PanelSectionImageEditor, Panel):
 
     bl_parent_id = DreamStudioImageEditorPanel.bl_idname
-    bl_label = "DreamStudio Options"
+    bl_label = "Input Options"
     bl_options = {"DEFAULT_CLOSED"}
 
     def draw(self, context):
@@ -385,7 +404,8 @@ def draw_advanced_options_panel(self, context):
     sampler_row.enabled = not use_recommended
 
 
-def render_render_options_panel(self, context, ui_context: UIContext):
+
+def draw_render_options_panel(self, context, ui_context: UIContext):
     layout = self.layout
     settings = context.scene.ds_settings
     use_custom_res = not settings.use_render_resolution
@@ -393,7 +413,7 @@ def render_render_options_panel(self, context, ui_context: UIContext):
     if DreamStateOperator.render_state == RenderState.ONBOARDING:
         return
 
-    layout.prop(settings, "init_type")
+    draw_init_type(layout, settings)
 
     if init_type != InitType.TEXT:
         layout.prop(settings, "init_strength")
@@ -417,6 +437,5 @@ def render_render_options_panel(self, context, ui_context: UIContext):
     image_size_row.prop(settings, "init_image_height", text="Height")
     image_size_row.prop(settings, "init_image_width", text="Width")
 
-    render_output_location_row(layout, settings)
-
+    draw_output_location_row(layout, settings)
     layout.operator(DS_OpenOutputFolderOperator.bl_idname, text="Open Output Folder")
