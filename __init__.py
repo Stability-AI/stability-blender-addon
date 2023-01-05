@@ -49,7 +49,6 @@ from .data import (
 )
 from .prompt_list import (
     PromptList_NewItem,
-    PromptList_PresetPanel,
     PromptList_RemoveItem,
     PromptListItem,
     PromptList_AddPreset,
@@ -263,7 +262,6 @@ prompt_list_operators = [
     PromptList_RemoveItem,
     PromptListItem,
     PromptList_AddPreset,
-    PromptList_PresetPanel
 ]
 
 registered_operators = [

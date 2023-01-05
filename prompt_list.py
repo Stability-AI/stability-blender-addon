@@ -110,24 +110,6 @@ PRESETS = [
     ("Skybox", "skybox.jpg", "High detailed stunning image of the sky, stock photo")
 ]
 
-class PromptList_PresetPanel(bpy.types.Panel):
-    """Select a style preset"""
-    bl_label = "Select a style preset"
-    bl_idname = "OBJECT_PT_previews"
-    bl_space_type = 'PROPERTIES'
-    bl_region_type = 'WINDOW'
-    bl_context = "object"
-
-    def draw(self, context):
-        layout = self.layout
-        wm = context.window_manager
-
-        row = layout.row()
-        row.template_icon_view(wm, "style_presets", show_labels=True, scale=5, scale_popup=10)
-
-        row = layout.row()
-        row.prop(wm, "style_presets", scale=10, scale_popup=10)
-
 
 def get_preset_icons(self, context):
     enum_items = [
