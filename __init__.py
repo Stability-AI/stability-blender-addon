@@ -114,7 +114,7 @@ class StabilitySettings(bpy.types.PropertyGroup):
     generation_engine: EnumProperty(
         name="Engine",
         items=engine_to_blender_enum(),
-        default=Engine.GENERATE_1_5.value,
+        default=Engine.GENERATE_512_2_1.value,
         description="The model and configuration options used for generation",
     )
     use_custom_seed: BoolProperty(

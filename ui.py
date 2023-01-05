@@ -171,6 +171,7 @@ class StabilityImageEditorPanel(PanelSectionImageEditor, Panel):
         render_prompt_list(layout, context)
 
         draw_dream_row(layout, settings, scene, UIContext.IMAGE_EDITOR)
+        draw_links_row(layout)
 
 
 # UI for the scene view panel.
@@ -402,6 +403,7 @@ def draw_advanced_options_panel(self, context):
     sampler_row.prop(settings, "sampler")
     sampler_row.enabled = not use_recommended
 
+    draw_links_row(layout)
 
 
 def draw_render_options_panel(self, context, ui_context: UIContext):
