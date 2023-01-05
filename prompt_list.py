@@ -82,14 +82,17 @@ def render_prompt_list(layout, context):
         prompt_text_row = prompt_row.row(align=True)
         prompt_text_row.prop(item, "prompt")
         prompt_text_row.scale_x = 1.5
+        prompt_text_row.scale_y = 1.5
 
         if MULTIPROMPT_ENABLED:
             strength_row = prompt_row.row(align=True)
             strength_row.scale_x = 0.5
             strength_row.prop(item, "strength", text="")
+            strength_row.scale_y = 1.5
 
             delete_row = prompt_row.row(align=True)
             delete_row.scale_x = 1
+            delete_row.scale_y = 1.5
             delete_op = delete_row.operator(
                 "prompt_list.remove_item", text="", icon="REMOVE"
             )
@@ -100,10 +103,12 @@ preview_collections = {}
 
 PRESETS = [
     ("Fantasy", "fantasy.png", "Fantasy art, epic lighting from above, inside a rpg game, bottom angle, epic fantasy card game art, epic character portrait, glowing and epic, full art illustration, landscape illustration, celtic fantasy art, neon fog"),
-    ("Comic", "comic.png", "comic book cover, reddit, antipodeans, leading lines, preparing to fight, trending on imagestation, son, full device, some orange and blue, rear facing, netting, marvel, serious business, centered composition, wide shot")
+    ("Comic", "comic.png", "comic book cover, reddit, antipodeans, leading lines, preparing to fight, trending on imagestation, son, full device, some orange and blue, rear facing, netting, marvel, serious business, centered composition, wide shot"),
+    ("Digital Art", "digital_art.png", "cinematic, hdri, matte painting, concept art, celestial, soft render, highly detail, HQ, 4k, 8k"),
+    ("Realistic", "realistic.png", "wide shot, ultrarealistic uhd, pexels, 85mm, 35mm film roll photo, hard light, masterpiece, sharp focus"),
+    ("Texture", "texture.jpg", "4k hd texture, 8k, high detail, photorealistic, proper shading, stock photo"),
+    ("Skybox", "skybox.jpg", "High detailed stunning image of the sky, stock photo")
 ]
-
-presets_dict = { name: (filename, description) for (name, filename, description) in PRESETS}
 
 class PromptList_PresetPanel(bpy.types.Panel):
     """Select a style preset"""
@@ -118,14 +123,16 @@ class PromptList_PresetPanel(bpy.types.Panel):
         wm = context.window_manager
 
         row = layout.row()
-        row.template_icon_view(wm, "style_presets")
+        row.template_icon_view(wm, "style_presets", show_labels=True, scale=5, scale_popup=10)
 
         row = layout.row()
-        row.prop(wm, "style_presets")
+        row.prop(wm, "style_presets", scale=10, scale_popup=10)
 
 
 def get_preset_icons(self, context):
-    enum_items = []
+    enum_items = [
+        ("Choose", "Choose", ""),
+    ]
 
     if context is None:
         return enum_items
@@ -134,27 +141,31 @@ def get_preset_icons(self, context):
     pcoll = preview_collections["style_presets"]
     icons_dir = os.path.join(os.path.dirname(__file__), "preview_thumbnails")
 
-    for (name, (filename, description)) in presets_dict.items():
-        filepath = os.path.join(icons_dir, name)
+    for i, vals in enumerate(PRESETS):
+        name, filename, description = vals
+        filepath = os.path.join(icons_dir, filename)
         if filepath in pcoll:
             thumb = pcoll[filepath]
         else:
             thumb = pcoll.load(filepath, filepath, 'IMAGE')
 
-        enum_items.append((name, name, description, thumb.icon_id, 0))
+        enum_items.append((name, name, description, thumb.icon_id, i))
 
     pcoll.previews = enum_items
     return pcoll.previews
 
-def update_preset(self, context):
-    print('update')
-    pass
+def set_preset(self, value):
+    preset = PRESETS[value]
+    context = bpy.context
+    new_prompt = context.scene.prompt_list.add()
+    new_prompt.prompt = preset[2]
 
 def register_presets():
     
     WindowManager.style_presets = EnumProperty(
         items=get_preset_icons,
-        update=update_preset
+        set=set_preset,
+        name="Style Preset",
         )
 
 
