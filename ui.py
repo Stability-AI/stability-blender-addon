@@ -1,3 +1,4 @@
+from datetime import timedelta, datetime
 from .requests import get_account_details
 from . import addon_updater_ops
 from bpy.types import Panel
@@ -134,10 +135,8 @@ def draw_account_details(layout, settings):
         )
     if (
         not StateOperator.account
-        or StateOperator.last_account_check_time + 60 < time.time()
     ):
         StateOperator.account = get_account_details(prefs.base_url, prefs.api_key)
-        StateOperator.last_account_check_time = time.time()
 
 
 # UI for the image editor panel.
@@ -206,8 +205,8 @@ class Stability3DPanel(Panel):
 
         draw_account_details(layout, settings)
         render_prompt_list(layout, context)
-
         draw_dream_row(layout, settings, scene, UIContext.SCENE_VIEW)
+
 
 
 TITLES = {

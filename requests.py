@@ -250,3 +250,5 @@ def get_account_details(base_url: str, api_key: str) -> DSAccount:
         user.logged_in = True
     except Exception as e:
         print(f"Error getting account details: {e}")
+
+    return user

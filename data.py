@@ -358,3 +358,4 @@ class DSAccount:
     email: str
     user_id: str
     credits: float
+    logged_in: bool = False

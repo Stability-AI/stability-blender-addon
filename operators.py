@@ -1,4 +1,4 @@
-import datetime
+from datetime import datetime
 from enum import Enum
 import heapq
 import subprocess
@@ -284,7 +284,6 @@ class DreamRenderOperator(Operator):
             StateOperator.account = get_account_details(
                 prefs.base_url, prefs.api_key
             )
-            StateOperator.last_account_check_time = time.time()
             StateOperator.render_state = RenderState.IDLE
             image_tex_area = None
             for area in bpy.context.screen.areas:
@@ -451,7 +450,6 @@ class StateOperator(Operator):
     sentry_initialized = False
 
     account: DSAccount = None
-    last_account_check_time = 0
 
     # Cancel any in-progress render and reset the addon state.
     def reset_render_state():
