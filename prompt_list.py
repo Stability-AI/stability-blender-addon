@@ -82,17 +82,14 @@ def render_prompt_list(layout, context):
         prompt_text_row = prompt_row.row(align=True)
         prompt_text_row.prop(item, "prompt")
         prompt_text_row.scale_x = 1.5
-        prompt_text_row.scale_y = 1.5
 
         if MULTIPROMPT_ENABLED:
             strength_row = prompt_row.row(align=True)
             strength_row.scale_x = 0.5
             strength_row.prop(item, "strength", text="")
-            strength_row.scale_y = 1.5
 
             delete_row = prompt_row.row(align=True)
             delete_row.scale_x = 1
-            delete_row.scale_y = 1.5
             delete_op = delete_row.operator(
                 "prompt_list.remove_item", text="", icon="REMOVE"
             )
