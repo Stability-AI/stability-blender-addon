@@ -99,6 +99,7 @@ def render_prompt_list(layout, context):
 
 
 preview_collections = {}
+preset_prompts = {}
 
 
 def get_preset_icons(self, context):
@@ -122,13 +123,15 @@ def get_preset_icons(self, context):
         else:
             thumb = pcoll.load(filepath, filepath, 'IMAGE')
 
+        preset_prompts[i] = vals
         enum_items.append((name, name, description, thumb.icon_id, i))
 
     pcoll.previews = enum_items
     return pcoll.previews
 
 def set_preset(self, value):
-    preset = PRESETS[value]
+    global preset_prompts
+    preset = preset_prompts[value]
     context = bpy.context
     new_prompt = context.scene.prompt_list.add()
     new_prompt.prompt = preset[2]
