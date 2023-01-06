@@ -1,9 +1,11 @@
+import re
 import bpy
 from bpy.props import StringProperty, IntProperty, CollectionProperty, FloatProperty, EnumProperty
 from bpy.types import PropertyGroup, UIList, Operator, Panel, UILayout
 import bpy.utils.previews
 import os
 from bpy.types import WindowManager
+import csv
 
 MULTIPROMPT_ENABLED = True
 
@@ -98,17 +100,9 @@ def render_prompt_list(layout, context):
 
 preview_collections = {}
 
-PRESETS = [
-    ("Fantasy", "fantasy.png", "Fantasy art, epic lighting from above, inside a rpg game, bottom angle, epic fantasy card game art, epic character portrait, glowing and epic, full art illustration, landscape illustration, celtic fantasy art, neon fog"),
-    ("Comic", "comic.png", "comic book cover, reddit, antipodeans, leading lines, preparing to fight, trending on imagestation, son, full device, some orange and blue, rear facing, netting, marvel, serious business, centered composition, wide shot"),
-    ("Digital Art", "digital_art.png", "cinematic, hdri, matte painting, concept art, celestial, soft render, highly detail, HQ, 4k, 8k"),
-    ("Realistic", "realistic.png", "wide shot, ultrarealistic uhd, pexels, 85mm, 35mm film roll photo, hard light, masterpiece, sharp focus"),
-    ("Texture", "texture.jpg", "4k hd texture, 8k, high detail, photorealistic, proper shading, stock photo"),
-    ("Skybox", "skybox.jpg", "High detailed stunning image of the sky, stock photo")
-]
-
 
 def get_preset_icons(self, context):
+    csv_presets = import_presets_from_csv()
     enum_items = [
         ("Choose", "Choose", ""),
     ]
@@ -120,7 +114,7 @@ def get_preset_icons(self, context):
     pcoll = preview_collections["style_presets"]
     icons_dir = os.path.join(os.path.dirname(__file__), "preview_thumbnails")
 
-    for i, vals in enumerate(PRESETS):
+    for i, vals in enumerate(csv_presets):
         name, filename, description = vals
         filepath = os.path.join(icons_dir, filename)
         if filepath in pcoll:
@@ -151,3 +145,39 @@ def register_presets():
     pcoll = bpy.utils.previews.new()
 
     preview_collections["style_presets"] = pcoll
+
+
+def parse_multi_prompt(str):
+  if str.startswith('||'):
+      str = str.replace('||', '')
+      return [{'prompt': str, 'weight': 1, 'weightClamped': False}]
+  else:
+      matches = re.finditer(r'(.*?(\:?([- .\d]*)(?:\||$)))', str)
+      prompts = []
+      for match in matches:
+          prompt, separator, weight = match.groups()
+          prompt_text = prompt.strip()
+          if separator not in ['.', ' ', '-']:
+              prompt_text = prompt_text.replace(separator, '').strip()
+          prompt_weight = weight.strip()
+          if prompt_weight in ['.', ' ', '-']:
+              prompt_weight = '1'
+          prompt_weight = float(prompt_weight) if prompt_weight else 1
+          weight_clamped = prompt_weight < -10 or prompt_weight > 10
+          if prompt_text != '':
+              prompts.append({'text': prompt_text, 'weight': weight_clamped})
+      return prompts
+
+def add_subject_to_prompt(prompt, subject):
+    return re.sub(r'___,', subject + ',', prompt)
+
+def import_presets_from_csv():
+    res = []
+    csv_location = os.path.join(os.path.dirname(__file__), "presets.csv")
+    with open(csv_location, newline='') as csvfile:
+        reader = csv.DictReader(csvfile)
+        for row in reader:
+            parsed_prompts = parse_multi_prompt(row['Prompt'])
+            res.append((row['Name'], row['Icon'], parsed_prompts[0]['text']))
+
+    return res
