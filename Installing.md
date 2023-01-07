@@ -1,4 +1,4 @@
-# Installing DreamStudio for Blender
+# Installing Stability for Blender
 
 1. First, download the latest release of Blender from [here](https://www.blender.org/download/), and the latest release of the plugin from from [Releases](https://github.com/Stability-AI/stability-blender-addon/releases/). Click the 'stability-blender-addon' link:
 
@@ -24,6 +24,6 @@
 
 ![](/content/enable_addon.jpg)
 
-5. Finally, in the 3D View, select the `DreamStudio` tab on the right to open the DreamStudio panel. Enter your API key, and you're all set!
+5. Finally, in the 3D View, select the `Stability` tab on the right to open the Stability panel. Enter your API key, and you're all set!
 
 ![](/content/select_dreamstudio.jpg)

@@ -65,7 +65,7 @@ def get_init_image_dimensions(settings, scene):
 
 def copy_image(image):
     new_image = bpy.data.images.new(
-        "dreamstudio_result",
+        "generation_output",
         width=image.size[0],
         height=image.size[1],
     )
@@ -116,6 +116,7 @@ class UIContext(Enum):
 class OutputDisplayLocation(Enum):
     TEXTURE_VIEW = 1
     FILE_SYSTEM = 2
+    NONE = 3
 
 
 # Used to display the init source property in the UI
@@ -148,6 +149,12 @@ OUTPUT_LOCATIONS = [
         "File System",
         "",
         OutputDisplayLocation.FILE_SYSTEM.value,
+    ),
+    (
+        OutputDisplayLocation.NONE.name,
+        "Don't Show",
+        "",
+        OutputDisplayLocation.NONE.value,
     ),
 ]
 
@@ -197,6 +204,7 @@ class ValidationState(Enum):
     VALID = 1
     DS_SETTINGS = 2
     RENDER_SETTINGS = 3
+
 
 # set of configurations with a sampler / engine config for each
 # then have a method to get optimal sampler / engine config for a given resolution
@@ -319,14 +327,19 @@ def get_preferences():
         return None
     return bpy.context.preferences.addons[__package__].preferences
 
+
 def get_settings():
     if not hasattr(bpy.context.scene, "ds_settings"):
-        raise Exception("DreamStudio settings not found! Restart Blender to fix this issue.")
+        raise Exception(
+            "Stability addon settings not found! Restart Blender to fix this issue."
+        )
     return bpy.context.scene.ds_settings
+
 
 def get_init_type() -> InitType:
     settings = bpy.context.scene.ds_settings
     return InitType[settings.init_type]
+
 
 def get_anim_images():
     render_file_type = bpy.context.scene.render.image_settings.file_format
@@ -339,8 +352,10 @@ def get_anim_images():
     init_img_paths = sorted(glob(glob_paths))
     return init_img_paths, frame_path
 
+
 class DSAccount:
-    
+
     email: str
     user_id: str
     credits: float
+    logged_in: bool = False

@@ -224,27 +224,31 @@ def get_account_details(base_url: str, api_key: str) -> DSAccount:
     
     user = DSAccount()
     
-    response = requests.get(f"{base_url}/user/account", headers={
-        "Authorization": api_key
-    })
+    try:
+        response = requests.get(f"{base_url}/user/account", headers={
+            "Authorization": api_key
+        })
 
-    if response.status_code != 200:
-        raise Exception("Error getting user details: " + str(response.text))
+        if response.status_code != 200:
+            raise Exception("Error getting user details: " + str(response.text))
 
-    # Do something with the payload...
-    user_payload = response.json()
+        # Do something with the payload...
+        user_payload = response.json()
 
-    user.email = user_payload["email"]
-    user.id = user_payload["id"]
+        user.email = user_payload["email"]
+        user.id = user_payload["id"]
 
-    response = requests.get(f"{base_url}/user/balance", headers={
-        "Authorization": api_key
-    })
+        response = requests.get(f"{base_url}/user/balance", headers={
+            "Authorization": api_key
+        })
 
-    if response.status_code != 200:
-        raise Exception("Error getting user balance: " + str(response.text))
-    
-    credits = response.json()["credits"]
-    user.credits = round(credits, 2)
+        if response.status_code != 200:
+            raise Exception("Error getting user balance: " + str(response.text))
+
+        credits = response.json()["credits"]
+        user.credits = round(credits, 2)
+        user.logged_in = True
+    except Exception as e:
+        print(f"Error getting account details: {e}")
 
     return user

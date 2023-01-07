@@ -9,24 +9,24 @@ from bpy.props import (
 )
 from bpy.types import AddonPreferences
 from .operators import (
-    DS_GetAPIKeyOperator,
+    GetAPIKeyOperator,
     DS_LogIssueOperator,
-    DS_FinishOnboardingOperator,
+    FinishOnboardingOperator,
     DS_OpenDocumentationOperator,
-    DS_OpenOutputFolderOperator,
-    DS_SceneRenderExistingOutputOperator,
-    DS_SceneRenderViewportOperator,
-    DS_UseRenderFolderOperator,
-    DreamStateOperator,
-    DS_CancelRenderOperator,
-    DS_ContinueRenderOperator,
+    OpenOutputFolderOperator,
+    SceneRenderExistingOutputOperator,
+    SceneRenderViewportOperator,
+    UseRenderFolderOperator,
+    StateOperator,
+    CancelRenderOperator,
+    ContinueRenderOperator,
     DreamRenderOperator,
 )
 
 from .ui import (
     AdvancedOptionsPanelSection3DEditor,
-    DreamStudio3DPanel,
-    DreamStudioImageEditorPanel,
+    Stability3DPanel,
+    StabilityImageEditorPanel,
     RenderOptionsPanelSection3DEditor,
     RenderOptionsPanelSectionImageEditor,
     AdvancedOptionsPanelSectionImageEditor,
@@ -51,6 +51,8 @@ from .prompt_list import (
     PromptList_NewItem,
     PromptList_RemoveItem,
     PromptListItem,
+    PromptList_AddPreset,
+    register_presets
 )
 
 # Update the entire UI when this property changes.
@@ -72,7 +74,7 @@ bl_info = {
 }
 
 
-class DreamStudioSettings(bpy.types.PropertyGroup):
+class StabilitySettings(bpy.types.PropertyGroup):
 
     # Global settings
     steps: IntProperty(
@@ -112,7 +114,7 @@ class DreamStudioSettings(bpy.types.PropertyGroup):
     generation_engine: EnumProperty(
         name="Engine",
         items=engine_to_blender_enum(),
-        default=Engine.GENERATE_1_5.value,
+        default=Engine.GENERATE_512_2_1.value,
         description="The model and configuration options used for generation",
     )
     use_custom_seed: BoolProperty(
@@ -124,7 +126,7 @@ class DreamStudioSettings(bpy.types.PropertyGroup):
     # uint32 max value
     seed: IntProperty(
         name="Seed",
-        default=0,
+        default=555555,
         min=0,
         max=2147483647,
         description="The seed fixes which random numbers are used for the diffusion process. This allows you to reproduce the same results for the same input frame. May also help with consistency across frames if you are rendering an animation",
@@ -152,7 +154,7 @@ class DreamStudioSettings(bpy.types.PropertyGroup):
     init_type: EnumProperty(
         name="Init Type",
         items=INIT_TYPES,
-        default=InitType.TEXTURE.value,
+        default=InitType.TEXT.value,
         description="The source of the initial image. Select Scene Render to render the current frame and use that render as the init image, or select Image Editor to use the currently open image in the image editor as the init image. Select None to just use the prompt text to generate the image",
     )
     # Init type settings
@@ -179,7 +181,7 @@ class DreamStudioSettings(bpy.types.PropertyGroup):
 
 
 @addon_updater_ops.make_annotations
-class DreamStudioPreferences(AddonPreferences):
+class StabilityPreferences(AddonPreferences):
     bl_idname = __package__
 
     api_key: StringProperty(name="API Key", default="")
@@ -242,11 +244,13 @@ class DreamStudioPreferences(AddonPreferences):
         # Disabled until GRPC is supported.
         # layout.prop(self, "api_type")
         layout.prop(self, "api_key")
-        layout.operator(DS_GetAPIKeyOperator.bl_idname, text="Get your API key here", icon="URL")
+        layout.operator(
+            GetAPIKeyOperator.bl_idname, text="Get your API key here", icon="URL"
+        )
         layout.prop(self, "base_url")
         layout.prop(self, "record_analytics")
         layout.operator(
-            DS_FinishOnboardingOperator.bl_idname,
+            FinishOnboardingOperator.bl_idname,
             text="Reinstall Dependencies",
             icon="CONSOLE",
         )
@@ -257,34 +261,38 @@ prompt_list_operators = [
     PromptList_NewItem,
     PromptList_RemoveItem,
     PromptListItem,
+    PromptList_AddPreset,
 ]
 
 registered_operators = [
     DS_OpenDocumentationOperator,
     DS_LogIssueOperator,
-    DreamStudioSettings,
+    StabilitySettings,
     DreamRenderOperator,
-    DreamStudioImageEditorPanel,
-    DS_CancelRenderOperator,
-    DS_ContinueRenderOperator,
-    DS_SceneRenderExistingOutputOperator,
-    DS_SceneRenderViewportOperator,
-    DreamStateOperator,
-    DreamStudio3DPanel,
-    AdvancedOptionsPanelSection3DEditor,
-    AdvancedOptionsPanelSectionImageEditor,
+    StabilityImageEditorPanel,
+    CancelRenderOperator,
+    ContinueRenderOperator,
+    SceneRenderExistingOutputOperator,
+    SceneRenderViewportOperator,
+    StateOperator,
+    Stability3DPanel,
     RenderOptionsPanelSection3DEditor,
     RenderOptionsPanelSectionImageEditor,
-    DS_FinishOnboardingOperator,
-    DS_GetAPIKeyOperator,
-    DS_OpenOutputFolderOperator,
-    DS_UseRenderFolderOperator
+    AdvancedOptionsPanelSection3DEditor,
+    AdvancedOptionsPanelSectionImageEditor,
+    FinishOnboardingOperator,
+    GetAPIKeyOperator,
+    OpenOutputFolderOperator,
+    UseRenderFolderOperator,
 ]
 
 
 def register():
 
     addon_updater_ops.register(bl_info)
+    
+    register_presets()
+
     for op in prompt_list_operators:
         bpy.utils.register_class(op)
 
@@ -293,16 +301,15 @@ def register():
         name="Index for prompt_list", default=0
     )
 
-    if check_dependencies_installed() and not DreamStateOperator.sentry_initialized:
+    if check_dependencies_installed() and not StateOperator.sentry_initialized:
         initialize_sentry()
-        DreamStateOperator.sentry_initialized = True
+        StateOperator.sentry_initialized = True
 
     for op in registered_operators:
         bpy.utils.register_class(op)
 
-
-    bpy.utils.register_class(DreamStudioPreferences)
-    bpy.types.Scene.ds_settings = PointerProperty(type=DreamStudioSettings)
+    bpy.utils.register_class(StabilityPreferences)
+    bpy.types.Scene.ds_settings = PointerProperty(type=StabilitySettings)
 
     bpy.context.preferences.use_preferences_save = True
 
@@ -316,5 +323,5 @@ def unregister():
     for op in registered_operators + prompt_list_operators:
         bpy.utils.unregister_class(op)
     del bpy.types.Scene.ds_settings
-    bpy.utils.unregister_class(DreamStudioPreferences)
+    bpy.utils.unregister_class(StabilityPreferences)
     addon_updater_ops.unregister()
