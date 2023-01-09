@@ -23,14 +23,14 @@ def render_img2img_rest(input_file_location, output_file_location, args):
     all_options = {
         "cfg_scale": args["cfg_scale"],
         "clip_guidance_preset": args["clip_guidance_preset"],
-        "height": 512,
         "sampler": "K_DPM_2_ANCESTRAL",
         "seed": seed,
         "step_schedule_end": 0.01,
         "step_schedule_start": 1.0 - args["init_strength"],
         "steps": args["steps"],
         "text_prompts": args["prompts"],
-        "width": 512,
+        "width": args["width"],
+        "height": args["height"],
     }
 
     base_url = args["base_url"]
@@ -95,8 +95,8 @@ def render_img2img_grpc(input_file_location, output_file_location, args):
     answers = stability_inference.generate(
         prompt=prompts,
         init_image=init_img,
-        width=init_img.width if init_img is not None else args["width"],
-        height=init_img.height if init_img is not None else args["height"],
+        width=args["width"],
+        height=args["height"],
         start_schedule=1.0 - args["init_strength"],
         cfg_scale=args["cfg_scale"],
         steps=args["steps"],
@@ -133,14 +133,14 @@ def render_text2img(output_file_directory, args):
     payload = {
         "cfg_scale": args["cfg_scale"],
         "clip_guidance_preset": args["clip_guidance_preset"],
-        "height": 512,
         "sampler": "K_DPM_2_ANCESTRAL",
         "seed": seed,
         "step_schedule_end": 0.01,
         "step_schedule_start": 1.0 - args["init_strength"],
         "steps": args["steps"],
         "text_prompts": args["prompts"],
-        "width": 512,
+        "width": args["width"],
+        "height": args["height"],
     }
 
     base_url = args["base_url"]

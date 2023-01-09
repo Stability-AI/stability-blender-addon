@@ -39,6 +39,7 @@ from .data import (
     get_settings,
     initialize_sentry,
     log_sentry_event,
+    prompt_to_filename,
 )
 from .dependencies import install_dependencies, check_dependencies_installed
 from .requests import (
@@ -262,7 +263,7 @@ class GeneratorWorker(Thread):
 
 # Sets up the init image / animation, as well as setting all DreamStateOperator state that is passed to
 # the generation thread.
-class DreamRenderOperator(Operator):
+class RenderOperator(Operator):
     bl_idname = "dreamstudio.dream_render_operator"
     bl_label = "Dream!"
 
@@ -362,7 +363,6 @@ class DreamRenderOperator(Operator):
 
         if StateOperator.rendering_from_viewport:
             init_type = InitType.VIEWPORT
-
         # If we are in the image editor, we need to save the image to a temporary file to use for init
         if init_type == InitType.TEXTURE:
             img = settings.init_texture_ref
@@ -372,7 +372,7 @@ class DreamRenderOperator(Operator):
             # https://blender.stackexchange.com/questions/2170/how-to-access-render-result-pixels-from-python-script
             if img.name == "Render Result":
                 img = bpy.data.images["Render Result"]
-                rr_path = rendered_dir + "/render_result.png"
+                rr_path = rendered_dir + prompt_to_filename(context.scene.prompt_list)
                 img.save_render(rr_path, scene=None)
                 init_image = bpy.data.images.load(rr_path)
                 init_image.scale(init_image_width, init_image_height)
@@ -509,6 +509,8 @@ class UseRenderFolderOperator(Operator):
         settings = get_settings()
         scene = context.scene
         abs_filepath = bpy.path.abspath(scene.render.filepath)
+        if not os.path.isdir(abs_filepath):
+            abs_filepath = os.path.dirname(abs_filepath)
         settings.init_animation_folder_path = abs_filepath
         return {"FINISHED"}
 

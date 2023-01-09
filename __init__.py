@@ -1,3 +1,4 @@
+import sys
 import bpy
 from bpy.props import (
     PointerProperty,
@@ -20,7 +21,7 @@ from .operators import (
     StateOperator,
     CancelRenderOperator,
     ContinueRenderOperator,
-    DreamRenderOperator,
+    RenderOperator,
 )
 
 from .ui import (
@@ -268,7 +269,7 @@ registered_operators = [
     DS_OpenDocumentationOperator,
     DS_LogIssueOperator,
     StabilitySettings,
-    DreamRenderOperator,
+    RenderOperator,
     StabilityImageEditorPanel,
     CancelRenderOperator,
     ContinueRenderOperator,

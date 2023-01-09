@@ -285,12 +285,12 @@ def validate_settings(
         if not os.path.isdir(render_dir):
             return (
                 ValidationState.RENDER_SETTINGS,
-                "Input directory does not exist or is invalid.",
+                "Input directory does not exist.",
             )
         if len(init_img_paths) < 1:
             return (
                 ValidationState.RENDER_SETTINGS,
-                "No images found in input directory.",
+                "No images found in input directory with the set file type.",
             )
 
     for p in prompts:

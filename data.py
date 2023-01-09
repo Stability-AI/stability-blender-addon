@@ -7,10 +7,11 @@ import subprocess
 import sys
 import platform
 from glob import glob
+import re
 
 from .dependencies import check_dependencies_installed, install_dependencies
 
-SUPPORTED_RENDER_FILE_TYPES = {"PNG", "JPEG", "JPG", "TGA", "BMP", "HDR", "EXR"}
+SUPPORTED_RENDER_FILE_TYPES = {"PNG", "JPEG", "JPG", "EXR"}
 RENDER_PREFIX = "render_"
 
 # Take current state of the scene and use it to format arguments for the REST API.
@@ -34,6 +35,7 @@ def format_rest_args(settings, prompt_list_items):
         )
     sampler_name = selected_sampler.name.strip().upper()
     clip_preset_name = clip_preset.name.strip().upper()
+    w, h = get_init_image_dimensions(settings, bpy.context.scene)
     return {
         "api_key": preferences.api_key,
         "base_url": preferences.base_url,
@@ -45,6 +47,8 @@ def format_rest_args(settings, prompt_list_items):
         "clip_guidance_preset": clip_preset_name,
         "steps": steps,
         "seed": settings.seed,
+        "width": w,
+        "height": h,
     }
 
 
@@ -343,6 +347,8 @@ def get_init_type() -> InitType:
 
 def get_anim_images():
     render_file_type = bpy.context.scene.render.image_settings.file_format
+    if render_file_type.lower() == "jpeg":
+        render_file_type = "jpg"
     settings = bpy.context.scene.ds_settings
     frame_path = bpy.path.abspath(settings.init_animation_folder_path)
     glob_paths = os.path.join(
@@ -352,6 +358,13 @@ def get_anim_images():
     init_img_paths = sorted(glob(glob_paths))
     return init_img_paths, frame_path
 
+def prompt_to_filename(prompt_list) -> str:
+    if len(prompt_list) == 0:
+        return "generation_result"
+    prompt = prompt_list[0].text
+    prompt = prompt.lower().replace(" ", "_")
+    prompt = re.sub('[^0-9a-zA-Z]+', '*', prompt)
+    return prompt
 
 class DSAccount:
 
