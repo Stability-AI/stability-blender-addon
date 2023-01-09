@@ -183,6 +183,9 @@ class GeneratorWorker(Thread):
         scene = self.scene
         args = format_rest_args(settings, scene.prompt_list)
 
+        frame_start, frame_end = scene.frame_start, scene.frame_end
+        scene_frame_length: int = frame_end - frame_start + 1
+
         StateOperator.render_state = RenderState.DIFFUSING
         output_file_path = os.path.join(self.output_img_directory, "result.png")
         init_image_width, init_image_height = get_init_image_dimensions(settings, scene)
@@ -231,9 +234,10 @@ class GeneratorWorker(Thread):
                 raise Exception(
                     "No rendered frames found. Please render the scene first."
                 )
-            end_frame = len(rendered_frame_image_paths)
+            start_frame = max(0, frame_start - 1)
+            end_frame = min(len(rendered_frame_image_paths), scene_frame_length)
             StateOperator.total_frame_count = end_frame
-            for i, frame_img_file in enumerate(rendered_frame_image_paths[:end_frame]):
+            for i, frame_img_file in enumerate(rendered_frame_image_paths[start_frame:end_frame]):
                 if (
                     not self.running
                     or StateOperator.render_state == RenderState.CANCELLED

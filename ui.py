@@ -12,6 +12,7 @@ from .prompt_list import render_prompt_list
 from .data import (
     SUPPORTED_RENDER_FILE_TYPES,
     InitType,
+    OutputDisplayLocation,
     RenderState,
     UIContext,
     ValidationState,
@@ -424,7 +425,7 @@ def draw_render_options_panel(self, context, ui_context: UIContext):
         layout.template_ID(
             settings, "init_texture_ref", open="image.open", new="image.new"
         )
-        if ui_context == UIContext.SCENE_VIEW and init_type == InitType.TEXTURE:
+        if ui_context == UIContext.SCENE_VIEW and init_type == InitType.TEXTURE and not settings.init_texture_ref:
             layout.label(text="Select 'Render Result' above to use a rendered frame. Render first!")
 
     if init_type == InitType.ANIMATION:
@@ -441,5 +442,7 @@ def draw_render_options_panel(self, context, ui_context: UIContext):
     image_size_row.prop(settings, "init_image_height", text="Height")
     image_size_row.prop(settings, "init_image_width", text="Width")
 
+    output_location: OutputDisplayLocation = OutputDisplayLocation[settings.output_location]
     draw_output_location_row(layout, settings)
-    layout.operator(OpenOutputFolderOperator.bl_idname, text="Open Output Folder")
+    if output_location == OutputDisplayLocation.FILE_SYSTEM:
+        layout.operator(OpenOutputFolderOperator.bl_idname, text="Open Output Folder")

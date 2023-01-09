@@ -66,13 +66,7 @@ class PromptList_AddPreset(Operator):
 def render_prompt_list(layout, context):
     scene = context.scene
 
-    title_row = layout.row()
     wm = context.window_manager
-    if MULTIPROMPT_ENABLED:
-        title_row.label(text="Prompts")
-        title_row.operator(PromptList_NewItem.bl_idname, icon="ADD")
-        title_row.prop(wm, "style_presets")
-
 
     for i in range(len(scene.prompt_list)):
         item = scene.prompt_list[i]
@@ -97,6 +91,12 @@ def render_prompt_list(layout, context):
             )
             delete_op.index = i
 
+    title_row = layout.row()
+    title_row.use_property_split = False
+    if MULTIPROMPT_ENABLED:
+        title_row.label(text="")
+        title_row.prop(wm, "style_presets")
+        title_row.operator(PromptList_NewItem.bl_idname, icon="ADD", text="Add")
 
 preview_collections = {}
 preset_prompts = {}
@@ -105,7 +105,7 @@ preset_prompts = {}
 def get_preset_icons(self, context):
     csv_presets = import_presets_from_csv()
     enum_items = [
-        ("Choose", "Choose", ""),
+        ("Preset", "Preset", ""),
     ]
 
     if context is None:
@@ -141,7 +141,7 @@ def register_presets():
     WindowManager.style_presets = EnumProperty(
         items=get_preset_icons,
         set=set_preset,
-        name="Style Preset",
+        name="",
         )
 
 
