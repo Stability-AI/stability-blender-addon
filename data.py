@@ -362,9 +362,9 @@ def get_anim_images():
 def prompt_to_filename(prompt_list) -> str:
     if len(prompt_list) == 0:
         return "generation_result"
-    prompt = prompt_list[0].text
+    prompt = prompt_list[0].prompt
     prompt = prompt.lower().replace(" ", "_")
-    prompt = re.sub("[^0-9a-zA-Z]+", "*", prompt)
+    prompt = re.sub("[^0-9a-zA-Z]+", "_", prompt)
     return prompt
 
 

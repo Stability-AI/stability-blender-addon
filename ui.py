@@ -268,7 +268,6 @@ def validate_settings(
                 f"Unsupported render file type: {render_file_type}. Supported types: {SUPPORTED_RENDER_FILE_TYPES}"
             )
 
-    render_file_path = scene.render.filepath
     render_file_type = scene.render.image_settings.file_format
     if init_type == InitType.TEXTURE:
         if not settings.init_texture_ref:
@@ -303,6 +302,16 @@ def validate_settings(
     return ValidationState.VALID, ""
 
 
+def credit_estimate(settings, scene, init_type: InitType):
+    width, height = get_init_image_dimensions(settings, scene)
+    pixels = width * height
+    steps = int(settings.steps)
+    credit_estimate = (pixels - 169527) * steps / 30 * 2.16e-08
+    if init_type == InitType.ANIMATION:
+        credit_estimate *= len(get_anim_images()[0])
+    return round(credit_estimate * 100, 2)
+
+
 def render_validation(layout, settings, scene, ui_context: UIContext):
     init_type = get_init_type()
     valid_state, validation_msg = validate_settings(
@@ -317,7 +326,8 @@ def render_validation(layout, settings, scene, ui_context: UIContext):
                 icon="CHECKMARK",
             )
         else:
-            layout.label(text="Ready!", icon="CHECKMARK")
+            cost = credit_estimate(settings, scene, init_type)
+            layout.label(text=f"Ready! Cost: {cost} credits.", icon="CHECKMARK")
     return valid_state
 
 

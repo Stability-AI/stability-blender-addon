@@ -360,7 +360,7 @@ class RenderOperator(Operator):
         if context.area.type == "IMAGE_EDITOR":
             ui_context = UIContext.IMAGE_EDITOR
 
-        init_img_path = rendered_dir + "/init.png"
+        init_img_path = os.path.join(rendered_dir, "init.png")
 
         init_image_width, init_image_height = get_init_image_dimensions(settings, scene)
         render_file_path = scene.render.filepath
@@ -377,7 +377,7 @@ class RenderOperator(Operator):
             # https://blender.stackexchange.com/questions/2170/how-to-access-render-result-pixels-from-python-script
             if img.name == "Render Result":
                 img = bpy.data.images["Render Result"]
-                rr_path = rendered_dir + prompt_to_filename(context.scene.prompt_list)
+                rr_path = os.path.join(rendered_dir, "render_result.png")
                 img.save_render(rr_path, scene=None)
                 init_image = bpy.data.images.load(rr_path)
                 init_image.scale(init_image_width, init_image_height)
@@ -387,9 +387,6 @@ class RenderOperator(Operator):
                 init_image.scale(init_image_width, init_image_height)
                 init_image.save_render(init_img_path)
             init_img_paths = [init_img_path]
-
-        if init_type == InitType.TEXTURE:
-            init_img_paths = [render_file_path]
 
         # Render 3D view
         if init_type == InitType.VIEWPORT:
