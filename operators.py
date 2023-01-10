@@ -40,6 +40,7 @@ from .data import (
     initialize_sentry,
     log_sentry_event,
     prompt_to_filename,
+    get_presets_file_location,
 )
 from .dependencies import install_dependencies, check_dependencies_installed
 from .requests import (
@@ -237,7 +238,9 @@ class GeneratorWorker(Thread):
             start_frame = max(0, frame_start - 1)
             end_frame = min(len(rendered_frame_image_paths), scene_frame_length)
             StateOperator.total_frame_count = end_frame
-            for i, frame_img_file in enumerate(rendered_frame_image_paths[start_frame:end_frame]):
+            for i, frame_img_file in enumerate(
+                rendered_frame_image_paths[start_frame:end_frame]
+            ):
                 if (
                     not self.running
                     or StateOperator.render_state == RenderState.CANCELLED
@@ -286,9 +289,7 @@ class RenderOperator(Operator):
             return {"FINISHED"}
 
         if StateOperator.render_state == RenderState.FINISHED:
-            StateOperator.account = get_account_details(
-                prefs.base_url, prefs.api_key
-            )
+            StateOperator.account = get_account_details(prefs.base_url, prefs.api_key)
             StateOperator.render_state = RenderState.IDLE
             image_tex_area = None
             for area in bpy.context.screen.areas:
@@ -479,9 +480,17 @@ class DS_OpenWebViewOperator(Operator):
     url = None
 
     def execute(self, context):
-        log_sentry_event(TrackingEvent.OPEN_WEB_URL)
-        log_analytics_event(TrackingEvent.OPEN_WEB_URL)
         webbrowser.open(self.url)
+        return {"FINISHED"}
+
+
+class DS_OpenPresetsFileOperator(Operator):
+    bl_idname = "dreamstudio.open_presets_file"
+    bl_label = "Edit Presets"
+
+    def execute(self, context):
+        csv_location = get_presets_file_location()
+        open_folder(csv_location)
         return {"FINISHED"}
 
 

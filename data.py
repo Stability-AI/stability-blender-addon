@@ -358,13 +358,15 @@ def get_anim_images():
     init_img_paths = sorted(glob(glob_paths))
     return init_img_paths, frame_path
 
+
 def prompt_to_filename(prompt_list) -> str:
     if len(prompt_list) == 0:
         return "generation_result"
     prompt = prompt_list[0].text
     prompt = prompt.lower().replace(" ", "_")
-    prompt = re.sub('[^0-9a-zA-Z]+', '*', prompt)
+    prompt = re.sub("[^0-9a-zA-Z]+", "*", prompt)
     return prompt
+
 
 class DSAccount:
 
@@ -372,3 +374,7 @@ class DSAccount:
     user_id: str
     credits: float
     logged_in: bool = False
+
+
+def get_presets_file_location():
+    return os.path.join(os.path.dirname(__file__), "presets.csv")

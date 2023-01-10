@@ -23,6 +23,7 @@ from .data import (
 )
 from .operators import (
     CancelRenderOperator,
+    DS_OpenPresetsFileOperator,
     GetAPIKeyOperator,
     DS_LogIssueOperator,
     FinishOnboardingOperator,
@@ -107,6 +108,9 @@ def draw_links_row(layout):
         DS_OpenDocumentationOperator.bl_idname, text="Open Docs", icon="TEXT"
     )
     links_row.operator(DS_LogIssueOperator.bl_idname, text="Log Issue", icon="QUESTION")
+    links_row.operator(
+        DS_OpenPresetsFileOperator.bl_idname, text="Edit Presets", icon="PRESET"
+    )
 
 
 def draw_init_type(layout, settings):
@@ -128,15 +132,11 @@ def draw_account_details(layout, settings):
     prefs = get_preferences()
     if StateOperator.account and StateOperator.account.logged_in:
         account_row = layout.row()
-        account_row.label(
-            text="Logged in as: {}".format(StateOperator.account.email)
-        )
+        account_row.label(text="Logged in as: {}".format(StateOperator.account.email))
         account_row.label(
             text="Balance: {} credits".format(StateOperator.account.credits)
         )
-    if (
-        not StateOperator.account
-    ):
+    if not StateOperator.account:
         StateOperator.account = get_account_details(prefs.base_url, prefs.api_key)
 
 
@@ -210,7 +210,6 @@ class Stability3DPanel(Panel):
         draw_dream_row(layout, settings, scene, UIContext.SCENE_VIEW)
 
 
-
 TITLES = {
     InitType.ANIMATION.value: "Dream (Animation)",
     InitType.TEXT.value: "Dream (Prompt Only)",
@@ -260,7 +259,7 @@ def validate_settings(
             )
 
     if not prompts or len(prompts) < 1:
-        return False, "Add at least one prompt to the prompt list."
+        return False, "Press 'Add' to add a prompt to the list."
 
     if init_type in (InitType.ANIMATION, InitType.TEXTURE):
         render_file_type = scene.render.image_settings.file_format
@@ -296,10 +295,10 @@ def validate_settings(
 
     for p in prompts:
         if not p or p.prompt == "":
-            return ValidationState.DS_SETTINGS, "Enter a prompt."
+            return ValidationState.DS_SETTINGS, "One or more prompts is empty."
 
         if p and p.prompt and len(p.prompt) > 500:
-            return ValidationState.DS_SETTINGS, "Enter a prompt."
+            return ValidationState.DS_SETTINGS, "One of your prompts is too long!"
 
     return ValidationState.VALID, ""
 
@@ -417,7 +416,6 @@ def draw_render_options_panel(self, context, ui_context: UIContext):
 
     draw_init_type(layout, settings)
 
-
     if init_type != InitType.TEXT:
         layout.prop(settings, "init_strength")
 
@@ -425,8 +423,14 @@ def draw_render_options_panel(self, context, ui_context: UIContext):
         layout.template_ID(
             settings, "init_texture_ref", open="image.open", new="image.new"
         )
-        if ui_context == UIContext.SCENE_VIEW and init_type == InitType.TEXTURE and not settings.init_texture_ref:
-            layout.label(text="Select 'Render Result' above to use a rendered frame. Render first!")
+        if (
+            ui_context == UIContext.SCENE_VIEW
+            and init_type == InitType.TEXTURE
+            and not settings.init_texture_ref
+        ):
+            layout.label(
+                text="Select 'Render Result' above to use a rendered frame. Render first!"
+            )
 
     if init_type == InitType.ANIMATION:
         init_folder_row = layout.row()
@@ -442,7 +446,9 @@ def draw_render_options_panel(self, context, ui_context: UIContext):
     image_size_row.prop(settings, "init_image_height", text="Height")
     image_size_row.prop(settings, "init_image_width", text="Width")
 
-    output_location: OutputDisplayLocation = OutputDisplayLocation[settings.output_location]
+    output_location: OutputDisplayLocation = OutputDisplayLocation[
+        settings.output_location
+    ]
     draw_output_location_row(layout, settings)
     if output_location == OutputDisplayLocation.FILE_SYSTEM:
         layout.operator(OpenOutputFolderOperator.bl_idname, text="Open Output Folder")

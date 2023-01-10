@@ -1,18 +1,34 @@
 import re
 import bpy
-from bpy.props import StringProperty, IntProperty, CollectionProperty, FloatProperty, EnumProperty
+from bpy.props import (
+    StringProperty,
+    IntProperty,
+    CollectionProperty,
+    FloatProperty,
+    EnumProperty,
+)
 from bpy.types import PropertyGroup, UIList, Operator, Panel, UILayout
 import bpy.utils.previews
 import os
 from bpy.types import WindowManager
 import csv
 
+from .data import get_presets_file_location
+
 MULTIPROMPT_ENABLED = True
 
 
 class PromptListItem(PropertyGroup):
-    prompt: StringProperty(name="Prompt", default="")
-    strength: FloatProperty(name="Strength", default=1, min=-1, max=1)
+    prompt: StringProperty(
+        name="Prompt",
+        default="",
+    )
+    strength: FloatProperty(
+        name="Prompt strength",
+        default=1,
+        min=-1,
+        max=1,
+    )
 
 
 class PromptListUIItem(UILayout):
@@ -58,7 +74,7 @@ class PromptList_AddPreset(Operator):
 
     def execute(self, context):
         new_prompt = context.scene.prompt_list.add()
-        new_prompt.prompt = "Close up, 8k, high detail, photorealistic, proper shading, stock photo"
+        new_prompt.prompt = ""
 
         return {"FINISHED"}
 
@@ -84,12 +100,13 @@ def render_prompt_list(layout, context):
             strength_row.scale_x = 0.5
             strength_row.prop(item, "strength", text="")
 
-            delete_row = prompt_row.row(align=True)
-            delete_row.scale_x = 1
-            delete_op = delete_row.operator(
-                "prompt_list.remove_item", text="", icon="REMOVE"
-            )
-            delete_op.index = i
+            if len(scene.prompt_list) > 1:
+                delete_row = prompt_row.row(align=True)
+                delete_row.scale_x = 1
+                delete_op = delete_row.operator(
+                    "prompt_list.remove_item", text="", icon="REMOVE"
+                )
+                delete_op.index = i
 
     title_row = layout.row()
     title_row.use_property_split = False
@@ -97,6 +114,7 @@ def render_prompt_list(layout, context):
         title_row.label(text="")
         title_row.prop(wm, "style_presets")
         title_row.operator(PromptList_NewItem.bl_idname, icon="ADD", text="Add")
+
 
 preview_collections = {}
 preset_prompts = {}
@@ -121,13 +139,14 @@ def get_preset_icons(self, context):
         if filepath in pcoll:
             thumb = pcoll[filepath]
         else:
-            thumb = pcoll.load(filepath, filepath, 'IMAGE')
+            thumb = pcoll.load(filepath, filepath, "IMAGE")
 
         preset_prompts[i] = vals
         enum_items.append((name, name, description, thumb.icon_id, i))
 
     pcoll.previews = enum_items
     return pcoll.previews
+
 
 def set_preset(self, value):
     global preset_prompts
@@ -136,14 +155,14 @@ def set_preset(self, value):
     new_prompt = context.scene.prompt_list.add()
     new_prompt.prompt = preset[2]
 
+
 def register_presets():
-    
+
     WindowManager.style_presets = EnumProperty(
         items=get_preset_icons,
         set=set_preset,
         name="",
-        )
-
+    )
 
     pcoll = bpy.utils.previews.new()
 
@@ -151,36 +170,38 @@ def register_presets():
 
 
 def parse_multi_prompt(str):
-  if str.startswith('||'):
-      str = str.replace('||', '')
-      return [{'prompt': str, 'weight': 1, 'weightClamped': False}]
-  else:
-      matches = re.finditer(r'(.*?(\:?([- .\d]*)(?:\||$)))', str)
-      prompts = []
-      for match in matches:
-          prompt, separator, weight = match.groups()
-          prompt_text = prompt.strip()
-          if separator not in ['.', ' ', '-']:
-              prompt_text = prompt_text.replace(separator, '').strip()
-          prompt_weight = weight.strip()
-          if prompt_weight in ['.', ' ', '-']:
-              prompt_weight = '1'
-          prompt_weight = float(prompt_weight) if prompt_weight else 1
-          weight_clamped = prompt_weight < -10 or prompt_weight > 10
-          if prompt_text != '':
-              prompts.append({'text': prompt_text, 'weight': weight_clamped})
-      return prompts
+    if str.startswith("||"):
+        str = str.replace("||", "")
+        return [{"prompt": str, "weight": 1, "weightClamped": False}]
+    else:
+        matches = re.finditer(r"(.*?(\:?([- .\d]*)(?:\||$)))", str)
+        prompts = []
+        for match in matches:
+            prompt, separator, weight = match.groups()
+            prompt_text = prompt.strip()
+            if separator not in [".", " ", "-"]:
+                prompt_text = prompt_text.replace(separator, "").strip()
+            prompt_weight = weight.strip()
+            if prompt_weight in [".", " ", "-"]:
+                prompt_weight = "1"
+            prompt_weight = float(prompt_weight) if prompt_weight else 1
+            weight_clamped = prompt_weight < -10 or prompt_weight > 10
+            if prompt_text != "":
+                prompts.append({"text": prompt_text, "weight": weight_clamped})
+        return prompts
+
 
 def add_subject_to_prompt(prompt, subject):
-    return re.sub(r'___,', subject + ',', prompt)
+    return re.sub(r"___,", subject + ",", prompt)
+
 
 def import_presets_from_csv():
     res = []
-    csv_location = os.path.join(os.path.dirname(__file__), "presets.csv")
-    with open(csv_location, newline='') as csvfile:
+    csv_location = get_presets_file_location()
+    with open(csv_location, newline="") as csvfile:
         reader = csv.DictReader(csvfile)
         for row in reader:
-            parsed_prompts = parse_multi_prompt(row['Prompt'])
-            res.append((row['Name'], row['Icon'], parsed_prompts[0]['text']))
+            parsed_prompts = parse_multi_prompt(row["Prompt"])
+            res.append((row["Name"], row["Icon"], parsed_prompts[0]["text"]))
 
     return res
