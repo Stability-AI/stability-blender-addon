@@ -1,3 +1,4 @@
+import sys
 import bpy
 from bpy.props import (
     PointerProperty,
@@ -20,8 +21,11 @@ from .operators import (
     StateOperator,
     CancelRenderOperator,
     ContinueRenderOperator,
-    DreamRenderOperator,
+    RenderOperator,
+    DS_OpenPresetsFileOperator,
 )
+from bpy.app.handlers import persistent
+
 
 from .ui import (
     AdvancedOptionsPanelSection3DEditor,
@@ -52,7 +56,7 @@ from .prompt_list import (
     PromptList_RemoveItem,
     PromptListItem,
     PromptList_AddPreset,
-    register_presets
+    register_presets,
 )
 
 # Update the entire UI when this property changes.
@@ -268,7 +272,7 @@ registered_operators = [
     DS_OpenDocumentationOperator,
     DS_LogIssueOperator,
     StabilitySettings,
-    DreamRenderOperator,
+    RenderOperator,
     StabilityImageEditorPanel,
     CancelRenderOperator,
     ContinueRenderOperator,
@@ -284,22 +288,38 @@ registered_operators = [
     GetAPIKeyOperator,
     OpenOutputFolderOperator,
     UseRenderFolderOperator,
+    DS_OpenPresetsFileOperator,
 ]
+
+
+def add_default_prompt():
+    pl = bpy.context.scene.prompt_list
+    if not pl or len(pl) == 0:
+        new_prompt = pl.add()
+        new_prompt.prompt = "A dream of a distant galaxy"
+
+
+@persistent
+def file_loaded(scene):
+    add_default_prompt()
+
+
+def on_register(scene):
+    add_default_prompt()
 
 
 def register():
 
     addon_updater_ops.register(bl_info)
-    
+
     register_presets()
+
+    bpy.app.handlers.load_post.append(file_loaded)
 
     for op in prompt_list_operators:
         bpy.utils.register_class(op)
 
     bpy.types.Scene.prompt_list = bpy.props.CollectionProperty(type=PromptListItem)
-    bpy.types.Scene.prompt_list_index = bpy.props.IntProperty(
-        name="Index for prompt_list", default=0
-    )
 
     if check_dependencies_installed() and not StateOperator.sentry_initialized:
         initialize_sentry()
@@ -312,6 +332,7 @@ def register():
     bpy.types.Scene.ds_settings = PointerProperty(type=StabilitySettings)
 
     bpy.context.preferences.use_preferences_save = True
+    bpy.app.handlers.depsgraph_update_pre.append(on_register)
 
     # hehe
     if getpass.getuser() == "coold":
@@ -325,3 +346,4 @@ def unregister():
     del bpy.types.Scene.ds_settings
     bpy.utils.unregister_class(StabilityPreferences)
     addon_updater_ops.unregister()
+    bpy.app.handlers.load_post.remove(file_loaded)

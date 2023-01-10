@@ -39,6 +39,8 @@ from .data import (
     get_settings,
     initialize_sentry,
     log_sentry_event,
+    prompt_to_filename,
+    get_presets_file_location,
 )
 from .dependencies import install_dependencies, check_dependencies_installed
 from .requests import (
@@ -182,6 +184,9 @@ class GeneratorWorker(Thread):
         scene = self.scene
         args = format_rest_args(settings, scene.prompt_list)
 
+        frame_start, frame_end = scene.frame_start, scene.frame_end
+        scene_frame_length: int = frame_end - frame_start + 1
+
         StateOperator.render_state = RenderState.DIFFUSING
         output_file_path = os.path.join(self.output_img_directory, "result.png")
         init_image_width, init_image_height = get_init_image_dimensions(settings, scene)
@@ -230,9 +235,12 @@ class GeneratorWorker(Thread):
                 raise Exception(
                     "No rendered frames found. Please render the scene first."
                 )
-            end_frame = len(rendered_frame_image_paths)
+            start_frame = max(0, frame_start - 1)
+            end_frame = min(len(rendered_frame_image_paths), scene_frame_length)
             StateOperator.total_frame_count = end_frame
-            for i, frame_img_file in enumerate(rendered_frame_image_paths[:end_frame]):
+            for i, frame_img_file in enumerate(
+                rendered_frame_image_paths[start_frame:end_frame]
+            ):
                 if (
                     not self.running
                     or StateOperator.render_state == RenderState.CANCELLED
@@ -262,7 +270,7 @@ class GeneratorWorker(Thread):
 
 # Sets up the init image / animation, as well as setting all DreamStateOperator state that is passed to
 # the generation thread.
-class DreamRenderOperator(Operator):
+class RenderOperator(Operator):
     bl_idname = "dreamstudio.dream_render_operator"
     bl_label = "Dream!"
 
@@ -281,9 +289,7 @@ class DreamRenderOperator(Operator):
             return {"FINISHED"}
 
         if StateOperator.render_state == RenderState.FINISHED:
-            StateOperator.account = get_account_details(
-                prefs.base_url, prefs.api_key
-            )
+            StateOperator.account = get_account_details(prefs.base_url, prefs.api_key)
             StateOperator.render_state = RenderState.IDLE
             image_tex_area = None
             for area in bpy.context.screen.areas:
@@ -354,7 +360,7 @@ class DreamRenderOperator(Operator):
         if context.area.type == "IMAGE_EDITOR":
             ui_context = UIContext.IMAGE_EDITOR
 
-        init_img_path = rendered_dir + "/init.png"
+        init_img_path = os.path.join(rendered_dir, "init.png")
 
         init_image_width, init_image_height = get_init_image_dimensions(settings, scene)
         render_file_path = scene.render.filepath
@@ -362,7 +368,6 @@ class DreamRenderOperator(Operator):
 
         if StateOperator.rendering_from_viewport:
             init_type = InitType.VIEWPORT
-
         # If we are in the image editor, we need to save the image to a temporary file to use for init
         if init_type == InitType.TEXTURE:
             img = settings.init_texture_ref
@@ -372,7 +377,7 @@ class DreamRenderOperator(Operator):
             # https://blender.stackexchange.com/questions/2170/how-to-access-render-result-pixels-from-python-script
             if img.name == "Render Result":
                 img = bpy.data.images["Render Result"]
-                rr_path = rendered_dir + "/render_result.png"
+                rr_path = os.path.join(rendered_dir, "render_result.png")
                 img.save_render(rr_path, scene=None)
                 init_image = bpy.data.images.load(rr_path)
                 init_image.scale(init_image_width, init_image_height)
@@ -382,9 +387,6 @@ class DreamRenderOperator(Operator):
                 init_image.scale(init_image_width, init_image_height)
                 init_image.save_render(init_img_path)
             init_img_paths = [init_img_path]
-
-        if init_type == InitType.TEXTURE:
-            init_img_paths = [render_file_path]
 
         # Render 3D view
         if init_type == InitType.VIEWPORT:
@@ -475,9 +477,17 @@ class DS_OpenWebViewOperator(Operator):
     url = None
 
     def execute(self, context):
-        log_sentry_event(TrackingEvent.OPEN_WEB_URL)
-        log_analytics_event(TrackingEvent.OPEN_WEB_URL)
         webbrowser.open(self.url)
+        return {"FINISHED"}
+
+
+class DS_OpenPresetsFileOperator(Operator):
+    bl_idname = "dreamstudio.open_presets_file"
+    bl_label = "Edit Presets"
+
+    def execute(self, context):
+        csv_location = get_presets_file_location()
+        open_folder(csv_location)
         return {"FINISHED"}
 
 
@@ -509,6 +519,8 @@ class UseRenderFolderOperator(Operator):
         settings = get_settings()
         scene = context.scene
         abs_filepath = bpy.path.abspath(scene.render.filepath)
+        if not os.path.isdir(abs_filepath):
+            abs_filepath = os.path.dirname(abs_filepath)
         settings.init_animation_folder_path = abs_filepath
         return {"FINISHED"}
 
