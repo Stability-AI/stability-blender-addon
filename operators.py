@@ -525,6 +525,21 @@ class UseRenderFolderOperator(Operator):
         return {"FINISHED"}
 
 
+class UseRenderResultOperator(Operator):
+    """Use the Render Result as the input image"""
+
+    bl_idname = "dreamstudio.use_render_result"
+    bl_label = "Use Render"
+
+    def execute(self, context):
+        settings = get_settings()
+        for image in bpy.data.images:
+            if image.name == "Render Result":
+                settings.init_texture_ref = image
+                break
+        return {"FINISHED"}
+
+
 class GetAPIKeyOperator(DS_OpenWebViewOperator, Operator):
     """Open a link to the API key page in your web browser"""
 

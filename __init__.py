@@ -23,6 +23,7 @@ from .operators import (
     ContinueRenderOperator,
     RenderOperator,
     DS_OpenPresetsFileOperator,
+    UseRenderResultOperator,
 )
 from bpy.app.handlers import persistent
 
@@ -288,6 +289,7 @@ registered_operators = [
     GetAPIKeyOperator,
     OpenOutputFolderOperator,
     UseRenderFolderOperator,
+    UseRenderResultOperator,
     DS_OpenPresetsFileOperator,
 ]
 

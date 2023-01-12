@@ -33,6 +33,7 @@ from .operators import (
     SceneRenderViewportOperator,
     UseRenderFolderOperator,
     StateOperator,
+    UseRenderResultOperator,
 )
 
 
@@ -249,6 +250,12 @@ def validate_settings(
 ) -> tuple[ValidationState, str]:
     width, height = get_init_image_dimensions(settings, scene)
     prompts = scene.prompt_list
+
+    if width % 64 != 0 or height % 64 != 0:
+        return (
+            ValidationState.RENDER_SETTINGS,
+            "Image dimensions must be multiples of 64.",
+        )
     # cannot be > 1 megapixel
     init_type = get_init_type()
     if init_type != InitType.TEXT:
@@ -430,18 +437,23 @@ def draw_render_options_panel(self, context, ui_context: UIContext):
         layout.prop(settings, "init_strength")
 
     if init_type == InitType.TEXTURE:
-        layout.template_ID(
+        row = layout.row()
+        col = row.column()
+        col.template_ID(
             settings, "init_texture_ref", open="image.open", new="image.new"
         )
-        if (
-            ui_context == UIContext.SCENE_VIEW
-            and init_type == InitType.TEXTURE
-            and not settings.init_texture_ref
-        ):
-            layout.label(
-                text="Select 'Render Result' above to use a rendered frame. Render first!"
-            )
-
+        col = row.column()
+        col.scale_x = 0.7
+        using_render = (
+            settings.init_texture_ref is not None
+            and settings.init_texture_ref.name == "Render Result"
+        )
+        col.operator(
+            UseRenderResultOperator.bl_idname,
+            text="Use Render",
+            icon="CAMERA_DATA",
+        )
+        col.enabled = not using_render
     if init_type == InitType.ANIMATION:
         init_folder_row = layout.row()
         init_folder_row.prop(settings, "init_animation_folder_path")
