@@ -472,5 +472,8 @@ def draw_render_options_panel(self, context, ui_context: UIContext):
         settings.output_location
     ]
     draw_output_location_row(layout, settings)
-    if output_location == OutputDisplayLocation.FILE_SYSTEM:
+    if (
+        output_location == OutputDisplayLocation.FILE_SYSTEM
+        or init_type == InitType.ANIMATION
+    ):
         layout.operator(OpenOutputFolderOperator.bl_idname, text="Open Output Folder")
